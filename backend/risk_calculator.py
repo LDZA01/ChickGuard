@@ -208,14 +208,14 @@ class RiskScoreCalculator:
         if risk_score >= 70:
             recommendations.append({
                 'priority': 'urgent',
-                'action': 'ตรวจสอบโรงเรือนทันที',
-                'reason': 'ความเสี่ยงสูง - อาจมีการระบาดของโรค',
+                'action': 'Inspect barn immediately',
+                'reason': 'High risk — possible disease outbreak detected',
                 'icon': '🚨'
             })
             recommendations.append({
                 'priority': 'urgent',
-                'action': 'ติดต่อสัตวแพทย์',
-                'reason': 'ต้องการการประเมินจากผู้เชี่ยวชาญ',
+                'action': 'Contact veterinarian',
+                'reason': 'Expert assessment required',
                 'icon': '👨‍⚕️'
             })
         
@@ -223,8 +223,8 @@ class RiskScoreCalculator:
         elif risk_score >= 40:
             recommendations.append({
                 'priority': 'high',
-                'action': 'เพิ่มการตรวจสอบ',
-                'reason': 'ความเสี่ยงปานกลาง - ต้องติดตามอย่างใกล้ชิด',
+                'action': 'Increase monitoring frequency',
+                'reason': 'Moderate risk — close observation needed',
                 'icon': '⚠️'
             })
         
@@ -234,38 +234,38 @@ class RiskScoreCalculator:
         if 'reduced_movement' in anomaly_types or 'prolonged_inactivity' in anomaly_types:
             recommendations.append({
                 'priority': 'high',
-                'action': 'ตรวจสอบการเคลื่อนไหวของไก่',
-                'reason': 'พบการเคลื่อนไหวลดลง - อาจเป็นสัญญาณของโรค',
+                'action': 'Check chicken movement patterns',
+                'reason': 'Reduced movement detected — possible sign of illness',
                 'icon': '🐔'
             })
             recommendations.append({
                 'priority': 'medium',
-                'action': 'ตรวจสอบอุณหภูมิและความชื้น',
-                'reason': 'สภาพแวดล้อมอาจส่งผลต่อพฤติกรรม',
+                'action': 'Check temperature and humidity',
+                'reason': 'Environment may be affecting behavior',
                 'icon': '🌡️'
             })
         
         if 'excessive_clustering' in anomaly_types:
             recommendations.append({
                 'priority': 'high',
-                'action': 'ตรวจสอบการกระจุกตัว',
-                'reason': 'ไก่กระจุกตัวผิดปกติ - อาจหนีความร้อนหรือหาความอบอุ่น',
+                'action': 'Investigate abnormal clustering',
+                'reason': 'Chickens clustering unusually — may indicate heat stress or cold',
                 'icon': '👥'
             })
         
         if 'overcrowding' in anomaly_types:
             recommendations.append({
                 'priority': 'medium',
-                'action': 'ปรับการจัดพื้นที่',
-                'reason': 'ความหนาแน่นสูงเกินไป - เพิ่มความเสี่ยงโรคติดต่อ',
+                'action': 'Adjust space allocation',
+                'reason': 'Density too high — increases disease transmission risk',
                 'icon': '📏'
             })
         
         if 'sudden_decrease' in anomaly_types:
             recommendations.append({
                 'priority': 'urgent',
-                'action': 'นับจำนวนไก่และตรวจสอบอัตราการตาย',
-                'reason': 'จำนวนลดลงอย่างกะทันหัน',
+                'action': 'Count flock and check mortality rate',
+                'reason': 'Sudden population decrease detected',
                 'icon': '📉'
             })
         
@@ -273,16 +273,16 @@ class RiskScoreCalculator:
         if behavior_scores.get('movement_score', 50) < 40:
             recommendations.append({
                 'priority': 'medium',
-                'action': 'ตรวจสอบอาหารและน้ำ',
-                'reason': 'การเคลื่อนไหวต่ำ - อาจขาดอาหารหรือน้ำ',
+                'action': 'Check feed and water supply',
+                'reason': 'Low activity — possible food or water shortage',
                 'icon': '🍚'
             })
         
         if not recommendations:
             recommendations.append({
                 'priority': 'low',
-                'action': 'ดำเนินการตามปกติ',
-                'reason': 'พฤติกรรมอยู่ในเกณฑ์ปกติ',
+                'action': 'Continue normal operations',
+                'reason': 'Behavior within normal parameters',
                 'icon': '✅'
             })
         

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Filter, Search } from 'lucide-react'
 import { useLanguage } from '../contexts/LanguageContext'
 import AlertCard from '../components/AlertCard'
-import { generateMockData } from '../utils/mockData'
+import api from '../services/api'
 import type { Alert } from '../types'
 
 export default function Alerts() {
@@ -14,12 +14,16 @@ export default function Alerts() {
   const { t } = useLanguage()
 
   useEffect(() => {
-    setTimeout(() => {
-      const mockData = generateMockData()
-      setAlerts(mockData.alerts)
-      setFilteredAlerts(mockData.alerts)
+    const fetchAlerts = async () => {
+      setLoading(true)
+      const { data, error } = await api.getDashboard()
+      if (!error && data && data.alerts) {
+        setAlerts(data.alerts)
+        setFilteredAlerts(data.alerts)
+      }
       setLoading(false)
-    }, 500)
+    }
+    fetchAlerts()
   }, [])
 
   useEffect(() => {
@@ -30,7 +34,7 @@ export default function Alerts() {
     }
 
     if (searchQuery) {
-      filtered = filtered.filter(alert => 
+      filtered = filtered.filter(alert =>
         alert.message.toLowerCase().includes(searchQuery.toLowerCase()) ||
         alert.farmName.toLowerCase().includes(searchQuery.toLowerCase())
       )
@@ -74,9 +78,8 @@ export default function Alerts() {
         ].map(({ key, label, color }) => (
           <div
             key={key}
-            className={`card cursor-pointer ${
-              selectedSeverity === key ? `ring-2 ring-${color}-500` : ''
-            }`}
+            className={`card cursor-pointer ${selectedSeverity === key ? `ring-2 ring-${color}-500` : ''
+              }`}
             onClick={() => setSelectedSeverity(key)}
           >
             <p className="text-sm text-gray-600">{label}</p>

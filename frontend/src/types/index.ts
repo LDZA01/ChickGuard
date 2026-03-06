@@ -66,6 +66,8 @@ export interface DashboardData {
 
 export interface FarmDetailData {
   farmId: string
+  name: string
+  healthScore: number
   cameras: Camera[]
   behaviorData: BehaviorData[]
   environmentData: EnvironmentData[]

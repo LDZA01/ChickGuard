@@ -12,9 +12,9 @@ import {
   Legend,
   Filler
 } from 'chart.js'
-import { TrendingUp, TrendingDown, Activity, Target } from 'lucide-react'
+import { TrendingUp, TrendingDown, Activity, AlertTriangle, CloudRain, Target } from 'lucide-react'
 import { useLanguage } from '../contexts/LanguageContext'
-import { generateAnalyticsData } from '../utils/mockData'
+import api from '../services/api'
 import type { AnalyticsData } from '../types'
 
 ChartJS.register(
@@ -35,10 +35,15 @@ export default function Analytics() {
   const { t } = useLanguage()
 
   useEffect(() => {
-    setTimeout(() => {
-      setAnalyticsData(generateAnalyticsData())
+    const fetchAnalytics = async () => {
+      setLoading(true)
+      const { data, error } = await api.getAnalytics()
+      if (!error && data) {
+        setAnalyticsData(data)
+      }
       setLoading(false)
-    }, 500)
+    }
+    fetchAnalytics()
   }, [])
 
   if (loading) {
@@ -175,10 +180,9 @@ export default function Analytics() {
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2">
                   <div
-                    className={`h-2 rounded-full ${
-                      disease.risk > 70 ? 'bg-red-500' :
+                    className={`h-2 rounded-full ${disease.risk > 70 ? 'bg-red-500' :
                       disease.risk > 40 ? 'bg-yellow-500' : 'bg-green-500'
-                    }`}
+                      }`}
                     style={{ width: `${disease.risk}%` }}
                   />
                 </div>

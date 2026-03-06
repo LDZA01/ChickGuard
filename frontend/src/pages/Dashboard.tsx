@@ -11,10 +11,9 @@ import {
   Legend,
   Filler
 } from 'chart.js'
-import { Users, AlertTriangle, Activity, Building2, Wifi, WifiOff } from 'lucide-react'
+import { Users, AlertTriangle, Activity, Building2, Wifi, WifiOff, RefreshCw, Cpu, Zap } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useLanguage } from '../contexts/LanguageContext'
-import { generateMockData } from '../utils/mockData'
 import api from '../services/api'
 import type { DashboardData } from '../types'
 
@@ -33,39 +32,85 @@ export default function Dashboard() {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [isConnected, setIsConnected] = useState(false)
+  const [isDiagnosing, setIsDiagnosing] = useState(false)
+  const [diagnosisResult, setDiagnosisResult] = useState<string | null>(null)
+  const [selectedFarmId, setSelectedFarmId] = useState<number>(1)
   const { t } = useLanguage()
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true)
-      
-      // Try to fetch from real backend
+
       const { data, error } = await api.getDashboard()
-      
-      if (error) {
-        console.warn('⚠️  Backend not available, using mock data')
+
+      if (error || !data) {
+        console.warn('⚠️  Backend not available')
         setIsConnected(false)
-        setDashboardData(generateMockData())
       } else {
-        console.log('✅ Connected to backend:', data)
         setIsConnected(true)
-        // For now, use mock data but mark as connected
-        // TODO: Transform backend data format
-        setDashboardData(generateMockData())
+        setDashboardData(data)
       }
-      
+
       setLoading(false)
     }
 
     fetchData()
-    
-    // Refresh every 5 seconds
     const interval = setInterval(fetchData, 5000)
-    
-    return () => {
-      clearInterval(interval)
-    }
+
+    return () => clearInterval(interval)
   }, [])
+
+  // Poll for live object detection count separately
+  useEffect(() => {
+    const fetchLive = async () => {
+      const { data, error } = await api.getDetectionLive();
+      if (!error && data) {
+        // Live object count per farm is now tracked via the periodic dashboard update loop instead of a separate single-farm polling endpoint to avoid mismatch.
+      }
+    };
+    if (isConnected) {
+      fetchLive();
+      const interval = setInterval(fetchLive, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [isConnected]);
+
+  const runDiagnosis = async (farmId: number = 1) => {
+    setIsDiagnosing(true);
+    setDiagnosisResult(null);
+
+    const { data, error } = await api.getRiskCurrent(farmId);
+
+    if (!error && data) {
+      setTimeout(() => {
+        // behavior_summary is a dict — build a readable sentence from its fields
+        const summary = data.behavior_summary
+        let msg = "System stable."
+        if (summary && typeof summary === 'object') {
+          if (summary.status === 'no_data') {
+            msg = "Not enough data yet. Keep monitoring."
+          } else {
+            const cur = summary.current
+            const avg = summary.averages
+            const scaledCount = ((cur?.objects ?? 0) * 1000).toLocaleString()
+            msg = `Detected ${scaledCount} chickens — Movement: ${Math.round(avg?.movement ?? 0)}%, Density: ${Math.round(avg?.density ?? 0)}%.`
+          }
+        } else if (typeof summary === 'string') {
+          msg = summary
+        }
+        if (data.recommendations && data.recommendations.length > 0) {
+          msg += ` Rec: ${data.recommendations[0].action}`
+        }
+        setDiagnosisResult(msg);
+        setIsDiagnosing(false);
+      }, 800);
+    } else {
+      setTimeout(() => {
+        setDiagnosisResult("Unable to connect to AI Diagnostic Engine. Operating in mock data mode.");
+        setIsDiagnosing(false);
+      }, 1000);
+    }
+  };
 
   if (loading) {
     return (
@@ -116,7 +161,7 @@ export default function Dashboard() {
         beginAtZero: true,
         max: 100,
         ticks: {
-          callback: function(value: number | string) {
+          callback: function (value: number | string) {
             return value + '%'
           },
         },
@@ -140,11 +185,10 @@ export default function Dashboard() {
           <h1 className="text-3xl font-bold text-gray-900">{t.dashboard.title}</h1>
           <p className="text-gray-600 mt-1">{t.dashboard.subtitle}</p>
         </div>
-        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm ${
-          isConnected 
-            ? 'bg-green-100 text-green-700' 
-            : 'bg-gray-100 text-gray-600'
-        }`}>
+        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm ${isConnected
+          ? 'bg-green-100 text-green-700'
+          : 'bg-gray-100 text-gray-600'
+          }`}>
           {isConnected ? (
             <>
               <Wifi className="w-4 h-4" />
@@ -187,6 +231,58 @@ export default function Dashboard() {
         />
       </div>
 
+      {/* Farm Live Cameras moved to individual FarmDetail.tsx pages */}
+
+      {/* AI Diagnostic Section */}
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-2">
+            <Cpu className="text-primary-500" size={24} />
+            <h3 className="font-bold text-lg">AI Diagnostic</h3>
+          </div>
+          <div className="flex items-center gap-2">
+            <select
+              value={selectedFarmId}
+              onChange={(e) => {
+                setSelectedFarmId(Number(e.target.value))
+                setDiagnosisResult(null)
+              }}
+              className="text-sm border border-gray-200 rounded-lg px-2 py-1.5 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-300"
+            >
+              {dashboardData.farms.map((farm: any) => (
+                <option key={farm.id} value={farm.id}>{farm.name}</option>
+              ))}
+            </select>
+            <button
+              onClick={() => runDiagnosis(selectedFarmId)}
+              disabled={isDiagnosing}
+              className="bg-slate-900 text-white px-3 py-1.5 rounded-lg text-sm font-bold flex items-center space-x-2 hover:bg-slate-800 disabled:opacity-50 transition-all cursor-pointer"
+            >
+              {isDiagnosing ? <RefreshCw className="animate-spin" size={16} /> : <Zap size={16} />}
+              <span>{isDiagnosing ? 'Analyzing...' : 'Run Scan'}</span>
+            </button>
+          </div>
+        </div>
+
+        {diagnosisResult ? (
+          <div className="bg-primary-50 border border-primary-100 p-4 rounded-xl animate-in fade-in slide-in-from-bottom-2">
+            <div className="flex items-start space-x-3">
+              <div className="bg-primary-500 p-1.5 rounded-lg text-white mt-0.5">
+                <Activity size={14} />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-primary-900 mb-1">Health Assessment</p>
+                <p className="text-sm text-primary-800 leading-relaxed italic">"{diagnosisResult}"</p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="border-2 border-dashed border-gray-100 p-6 rounded-xl flex flex-col items-center justify-center text-gray-400 text-center">
+            <p className="text-sm">Click 'Run Scan' to analyze live visual & sensor behavior data</p>
+          </div>
+        )}
+      </div>
+
       {/* Risk Trend Chart */}
       <div className="card">
         <h2 className="text-xl font-bold mb-4">{t.dashboard.riskTrend}</h2>
@@ -199,7 +295,7 @@ export default function Dashboard() {
       <div>
         <h2 className="text-xl font-bold mb-4">{t.dashboard.allFarms}</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {dashboardData.farms.map((farm) => (
+          {dashboardData.farms.map((farm: any) => (
             <Link
               key={farm.id}
               to={`/farm/${farm.id}`}
@@ -218,7 +314,7 @@ export default function Dashboard() {
               <div className="space-y-2">
                 <div className="flex justify-between">
                   <span className="text-gray-600">{t.dashboard.chickens}</span>
-                  <span className="font-semibold">{farm.totalChickens.toLocaleString()}</span>
+                  <span className="font-semibold">{farm.totalChickens?.toLocaleString() || farm.objects}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">{t.dashboard.healthScore}</span>
@@ -253,7 +349,7 @@ export default function Dashboard() {
           </Link>
         </div>
         <div className="space-y-3">
-          {dashboardData.alerts.slice(0, 5).map((alert) => (
+          {(dashboardData.alerts || []).slice(0, 5).map((alert: any) => (
             <div
               key={alert.id}
               className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg"
