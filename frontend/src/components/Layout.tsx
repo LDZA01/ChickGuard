@@ -7,7 +7,6 @@ import {
   Settings, 
   Menu,
   X,
-  Bird,
   Stethoscope,
 } from 'lucide-react'
 import { useLanguage } from '../contexts/LanguageContext'
@@ -34,9 +33,7 @@ export default function Layout() {
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
             <div className="flex items-center space-x-3">
-              <div className="bg-primary-500 p-2 rounded-lg">
-                <Bird className="w-6 h-6 text-white" />
-              </div>
+              <img src="/logo.png" alt="ChickGuard Logo" className="w-10 h-10 object-contain" />
               <div>
                 <h1 className="text-xl font-bold text-gray-900">ChickGuard</h1>
                 <p className="text-xs text-gray-500">AI Health Monitoring</p>
