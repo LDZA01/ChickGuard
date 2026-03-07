@@ -1,109 +1,66 @@
 # 🐔 ChickGuard
 
-**AI-Powered Chicken Health Monitoring System**  
-**Based on One Health Principles**
+**AI-Powered Chicken Health Monitoring System**
 
 <div align="center">
   <img src="https://img.shields.io/badge/AI-YOLOv8-blue?style=for-the-badge" alt="YOLOv8">
-  <img src="https://img.shields.io/badge/React----
-
-## 📚 Documentation
-
-### 🚀 Getting Started
-- 📖 **[Quick Start Guide](docs/QUICKSTART.md)** - Get started in 5 minutes
-- 🤖 **[Auto Setup Script](scripts/setup.sh)** - One-command installation
-  ```bash
-  bash scripts/setup.sh
-  ```
-
-### 📘 System Documentation
-- 🏥 **[One Health Guide](docs/ONE_HEALTH_GUIDE.md)** - Complete system architecture
-- 📊 **[Project Structure](docs/PROJECT_STRUCTURE.md)** - Code organization
-- 📁 **[docs/](docs/)** - All documentation
-
-### ⚙️ Configuration Guides
-- 🔐 **[Environment Setup](docs/ENV_SETUP.md)** - Configure .env file
-- 📱 **[Notifications Setup](docs/NOTIFICATION_SETUP_QUICK.md)** - LINE + Email (15 min)
-- 🚀 **[Deployment Checklist](docs/DEPLOYMENT_CHECKLIST.md)** - Production deployment
-
-### 🛠️ Development Tools
-- 🧪 **[Test Environment](scripts/test_env.py)** - Verify .env configuration
-  ```bash
-  python3 scripts/test_env.py
-  ```
-- 📱 **[Test LINE](scripts/test_line.py)** - Test LINE notifications
-  ```bash
-  python3 scripts/test_line.py
-  ```
-
-### 👥 For Developers
-- 🤝 **[Contributing Guide](docs/CONTRIBUTING.md)** - How to contribute
-- 🔗 **[API Documentation](http://localhost:8000/docs)** - Swagger UI (when running)for-the-badge" alt="React">
+  <img src="https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge" alt="React">
   <img src="https://img.shields.io/badge/FastAPI-Latest-orange?style=for-the-badge" alt="FastAPI">
-  <img src="https://img.shields.io/badge/LINE-Notify-00B900?style=for-the-badge" alt="LINE">
+  <img src="https://img.shields.io/badge/LINE-Messaging_API-00B900?style=for-the-badge" alt="LINE">
 </div>
 
 ---
 
-## 🌟 One Health Concept
+## What is ChickGuard?
 
-**เมื่อสุขภาพสัตว์สั่นคลอน มนุษย์และสิ่งแวดล้อมก็ได้รับผลกระทบ**
-
-ChickGuard ใช้ AI ตรวจจับสัญญาณเตือนต้นของโรคระบาดในไก่  
-**ก่อน**ที่จะลุกลามทั้งโรงเรือน
-
-### 🤖 ChickGuard ทำอะไร?
+ChickGuard uses AI to detect early signs of disease in chicken flocks — before it spreads across the entire barn.
 
 ```
-กล้อง 24 ชม. → AI วิเคราะห์พฤติกรรม → Disease Risk Score → � แจ้งเตือน LINE
+Camera 24/7  →  AI Behavior Analysis  →  Disease Risk Score (0–100)  →  LINE Alert
 ```
 
-**AI สามารถตรวจจับสัญญาณเล็กๆ ที่สายตามนุษย์มองไม่เห็น:**
-- 🐔 การเคลื่อนไหวลดลง
-- 👥 การกระจุกตัวแน่นผิดปกติ  
-- 🍚 วิเคราะห์รูปแบบการกินอาหารเปลี่ยนไป
-
-จากนั้นระบบจะคำนวณเป็น **Disease Risk Score (0-100)**  
-หากความเสี่ยงสูง → **📱 แจ้งเตือนทันทีผ่าน LINE**
+The system detects subtle behavioral signals invisible to the human eye:
+- 🐔 Reduced movement
+- 👥 Abnormal clustering
+- 🍚 Changes in feeding patterns
 
 ---
 
-## �🚀 Quick Start
+## Quick Start
 
-### 1️⃣ Backend (AI + Behavior Analysis)
+### 1. Backend
+
 ```bash
-# ติดตั้ง dependencies
 cd backend
 pip install -r requirements.txt
 
-# ตั้งค่า environment variables
-cd ..
-cp .env.example .env
-nano .env  # แก้ไขตามต้องการ
+cp .env.example .env   # configure your credentials
 
-# รัน backend
-cd backend
 python main.py
 ```
 
-**รัน:** http://localhost:8000
-- API Docs: http://localhost:8000/docs
-- Risk Score: http://localhost:8000/api/risk/current
-- Video Feed: http://localhost:8000/api/video_feed
+| Endpoint | URL |
+|---|---|
+| API Server | http://localhost:8000 |
+| Swagger Docs | http://localhost:8000/docs |
+| Risk Score | http://localhost:8000/api/risk/current |
+| Video Feed | http://localhost:8000/api/video_feed |
 
-### 2️⃣ Frontend (Dashboard)
+### 2. Frontend
+
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-**เปิด:** http://localhost:3001
+Opens at: http://localhost:3001
 
-### 3️⃣ Configuration (Optional - สำหรับการแจ้งเตือน)
+### 3. Notifications (Optional)
 
-แก้ไขไฟล์ `.env` ที่ root:
-```bash
+Edit `.env` at project root:
+
+```env
 LINE_CHANNEL_ACCESS_TOKEN=your_token_here
 LINE_USER_ID=your_user_id_here
 SMTP_USER=your-email@gmail.com
@@ -111,220 +68,137 @@ SMTP_PASSWORD=your-app-password
 ALERT_EMAIL=recipient@example.com
 ```
 
-📚 **คู่มือละเอียด:** ดู `ENV_SETUP.md` และ `NOTIFICATION_SETUP_QUICK.md`
+See [Environment Setup](docs/ENV_SETUP.md) and [Notifications Setup](docs/NOTIFICATION_SETUP_QUICK.md) for details.
 
 ---
 
-## ✨ Features
+## Features
 
-### 🤖 Real AI Detection (YOLOv8)
-- ✅ Real-time object detection
-- ✅ 80 COCO classes
-- ✅ Bounding boxes + confidence scores
-- ✅ 5 FPS processing
-- ✅ **No webcam needed!** (uses synthetic frames)
-
-### 🧠 Behavior Analysis (NEW!)
-- ✅ Movement tracking
-- ✅ Clustering detection
-- ✅ Density monitoring
-- ✅ Activity level analysis
-- ✅ Anomaly detection
-
-### 📊 Disease Risk Score (NEW!)
-- ✅ Real-time risk calculation (0-100)
-- ✅ Multiple risk levels (Low/Medium/High)
-- ✅ Anomaly-based scoring
-- ✅ Actionable recommendations
-- ✅ Trend analysis
-
-### 📱 LINE Notifications (NEW!)
-- ✅ Auto-alert on high risk
-- ✅ Thai language messages
-- ✅ Detailed anomaly reports
-- ✅ Actionable recommendations
-- ✅ Daily summary reports
-
-### 🎥 Video System
-- ✅ Synthetic frame generation
-- ✅ Moving objects simulation
-- ✅ Real-time streaming (MJPEG)
-- ✅ Annotated video feed
-
-### 📊 Dashboard
-- ✅ Real-time risk monitoring
-- ✅ Behavior visualization
-- ✅ Object counting
-- ✅ Activity tracking
-- ✅ Interactive charts
-- ✅ Bilingual (EN/TH)
+| Module | Capabilities |
+|---|---|
+| 🤖 AI Detection | YOLOv8 real-time object detection, 5 FPS, no webcam required |
+| 🧠 Behavior Analysis | Movement tracking, clustering detection, density monitoring |
+| 📊 Risk Score | Disease risk 0–100, multi-level alerts, trend analysis |
+| 📱 LINE Notifications | Auto-alert on high risk, broadcast to all subscribers |
+| 🎥 Video Stream | Synthetic frame generation, MJPEG real-time streaming |
+| 🖥️ Dashboard | Multi-farm overview, charts, bilingual (EN/TH) |
 
 ---
 
-## 🎯 How It Works
+## How It Works
 
 ```
-┌─────────────────┐
-│ Synthetic Frame │  ← Generates realistic video frames
-│   Generator     │
-└────────┬────────┘
-         │
-         ↓
-┌─────────────────┐
-│  YOLOv8 AI      │  ← Real object detection
-│  Detection      │
-└────────┬────────┘
-         │
-         ↓
-┌─────────────────┐
-│ Behavior        │  ← Movement, clustering, density
-│ Analysis        │
-└────────┬────────┘
-         │
-         ↓
-┌─────────────────┐
-│ Risk Score      │  ← Disease Risk Calculator
-│ Calculator      │     (0-100 score)
-└────────┬────────┘
-         │
-         ↓
-┌─────────────────┐
-│ LINE Notify     │  ← Auto-alert on high risk
-│ Alert System    │
-└────────┬────────┘
-         │
-         ↓
-┌─────────────────┐
-│ React Dashboard │  ← Beautiful real-time UI
-└─────────────────┘
+Synthetic Frame Generator
+        │
+        ▼
+  YOLOv8 Detection         ← real object detection
+        │
+        ▼
+  Behavior Analyzer        ← movement, clustering, density
+        │
+        ▼
+  Risk Score Calculator    ← disease risk 0–100
+        │
+        ▼
+  LINE Alert System        ← auto-alert on high risk
+        │
+        ▼
+  React Dashboard          ← real-time monitoring UI
 ```
 
 ---
 
-## 📦 Project Structure
+## API Endpoints
+
+```bash
+# Detection & Risk
+GET  /api/detection/live     # live detection + behavior + risk
+GET  /api/dashboard          # all farms overview
+GET  /api/risk/current       # current risk score
+GET  /api/risk/trend         # risk trend (24h)
+
+# Notifications
+GET  /api/notify/subscribers # list LINE subscribers
+POST /api/notify/test        # test all channels
+POST /api/notify/broadcast   # broadcast to all subscribers
+POST /api/notify/alert       # send manual alert
+
+# Other
+GET  /api/video_feed         # MJPEG video stream
+GET  /docs                   # Swagger UI
+```
+
+---
+
+## Project Structure
 
 ```
 ChickGuard/
-├── frontend/              # React + TypeScript Dashboard
-│   ├── src/
-│   │   ├── pages/        # Dashboard, Analytics, Alerts
-│   │   ├── components/   # Reusable UI components
-│   │   ├── services/     # API integration
-│   │   └── locales/      # EN/TH translations
-│   └── package.json
-│
-├── backend/              # FastAPI + YOLOv8 + AI
-│   ├── main.py          # Main server
-│   ├── behavior_analyzer.py    # Behavior analysis
-│   ├── risk_calculator.py      # Risk score
-│   ├── notification_system.py  # Alerts (LINE + Email)
+├── backend/
+│   ├── main.py                  # FastAPI server
+│   ├── behavior_analyzer.py     # Behavior analysis
+│   ├── risk_calculator.py       # Risk scoring
+│   ├── notification_system.py   # LINE + Email alerts
 │   └── requirements.txt
 │
-├── README.md            # Quick start (this file)
-└── ONE_HEALTH_GUIDE.md  # Complete documentation
+├── frontend/
+│   ├── src/
+│   │   ├── pages/               # Dashboard, Analytics, Alerts
+│   │   ├── components/          # Reusable UI components
+│   │   ├── services/            # API integration
+│   │   └── locales/             # EN/TH translations
+│   └── package.json
+│
+├── docs/                        # Full documentation
+└── scripts/                     # Setup & test utilities
 ```
 
 ---
 
-## 🛠️ Technology Stack
+## Tech Stack
 
-**Frontend:** React 18 • TypeScript • Vite • Tailwind CSS • Chart.js  
-**Backend:** FastAPI • YOLOv8 • OpenCV • PyTorch  
-**Notifications:** LINE Messaging API • Email (SMTP)  
-**AI:** Behavior Analysis • Risk Score Calculator • Real-time Detection
-
----
-
-## 📚 Documentation
-
-- **README.md** (this file) - Quick start & overview
-- **ONE_HEALTH_GUIDE.md** - Complete guide with:
-  - Disease Risk Score details
-  - Notification setup (LINE + Email)
-  - API documentation
-  - Troubleshooting
+| Layer | Technologies |
+|---|---|
+| Frontend | React 18, TypeScript, Vite, Tailwind CSS |
+| Backend | FastAPI, YOLOv8, OpenCV, Python 3.12 |
+| Notifications | LINE Messaging API, SMTP Email |
+| Deployment | Railway (backend), Vercel (frontend) |
 
 ---
 
-## 🎮 API Endpoints
+## Documentation
 
-### Detection & Risk
-```bash
-GET  /api/detection/live    # Real-time detection + behavior + risk
-GET  /api/dashboard          # Dashboard overview
-GET  /api/risk/current       # Current risk score
-GET  /api/risk/trend         # Risk trend (1 hour)
-GET  /api/behavior/summary   # Behavior analysis summary
-```
-
-### Notifications
-```bash
-GET  /api/notifications/status      # Check channels status
-POST /api/notifications/test-all    # Test all channels
-POST /api/alert/test                # Send test alert
-```
-
-### Video
-```bash
-GET  /api/video_feed        # MJPEG video stream
-GET  /docs                  # Swagger API docs
-```
+| Guide | Description |
+|---|---|
+| [Quick Start](docs/QUICKSTART.md) | Get started in 5 minutes |
+| [One Health Guide](docs/ONE_HEALTH_GUIDE.md) | Full system architecture |
+| [Environment Setup](docs/ENV_SETUP.md) | Configure .env variables |
+| [Notifications Setup](docs/NOTIFICATION_SETUP_QUICK.md) | LINE + Email (15 min) |
+| [Deployment Checklist](docs/DEPLOYMENT_CHECKLIST.md) | Production deployment |
+| [Contributing Guide](docs/CONTRIBUTING.md) | How to contribute |
 
 ---
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 **Backend won't start:**
 ```bash
-pip install ultralytics opencv-python fastapi uvicorn torch numpy requests
+pip install fastapi uvicorn opencv-python-headless numpy requests python-dotenv
 ```
 
 **Frontend error:**
 ```bash
-cd frontend
-rm -rf node_modules package-lock.json
-npm install
+cd frontend && rm -rf node_modules && npm install
 ```
 
 **Port already in use:**
 ```bash
-# Kill process on port 8000
 lsof -ti:8000 | xargs kill -9
 ```
-
-
----
-
-## � Documentation
-
-### Quick Links
-- 📖 **[Quick Start Guide](QUICKSTART.md)** - Get started in 5 minutes
-- 📘 **[One Health Guide](ONE_HEALTH_GUIDE.md)** - Complete system documentation
-- � **[docs/](docs/)** - All documentation
-
-### Setup Guides
-- � **[Environment Variables](docs/ENV_SETUP.md)** - Configure .env file
-- 📱 **[Notifications Setup](docs/NOTIFICATION_SETUP_QUICK.md)** - LINE + Email (15 min)
-- � **[Deployment Checklist](docs/DEPLOYMENT_CHECKLIST.md)** - Production deployment
-
-### For Developers
-- 🤝 **[Contributing Guide](CONTRIBUTING.md)** - How to contribute
-- 🔗 **[API Documentation](http://localhost:8000/docs)** - Swagger UI (when running)
-
----
-
-## 🤝 Contributing
-
-We welcome contributions! Please see our [Contributing Guide](docs/CONTRIBUTING.md) for details.
 
 ---
 
 <div align="center">
   <p>Made with ❤️ for Thai Farmers</p>
-  <p><strong>One Health - One Future</strong> 🐔🌍</p>
-  <p>
-    <a href="https://github.com/LDZA01/ChickGuard">GitHub</a> •
-    <a href="docs/">Documentation</a> •
-    <a href="docs/CONTRIBUTING.md">Contributing</a>
-  </p>
+  <p><strong>One Health — One Future</strong> 🐔🌍</p>
 </div>
