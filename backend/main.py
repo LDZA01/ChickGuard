@@ -3,7 +3,7 @@
 Alternative: Use video file instead of webcam
 For development when webcam permission issues occur
 """
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, BackgroundTasks
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from datetime import datetime, timedelta
@@ -792,6 +792,120 @@ async def get_stats():
         "video_source": VIDEO_SOURCE,
         "confidence_threshold": CONFIDENCE_THRESHOLD,
         "process_fps": PROCESS_FPS
+    }
+
+# =====================================================
+# LINE Notification Endpoints
+# =====================================================
+
+# เก็บ User ID ทุกคนที่แอด Bot (in-memory)
+line_subscribers: List[str] = []
+
+@app.post("/webhook/line")
+async def line_webhook(request: Request):
+    """LINE Webhook — รับ event เมื่อมีคนแอด Bot แล้วเก็บ User ID + ส่ง welcome ทันที"""
+    try:
+        body = await request.json()
+    except Exception:
+        return {"status": "ok"}
+
+    events = body.get("events", [])
+    for event in events:
+        user_id = event.get("source", {}).get("userId")
+        event_type = event.get("type")  # follow, message, etc.
+
+        if user_id and user_id not in line_subscribers:
+            line_subscribers.append(user_id)
+            logger.info(f"📱 New LINE subscriber: {user_id[:8]}... (event: {event_type})")
+
+            # ส่ง welcome message ทันทีที่แอด
+            for ch in notification_manager.channels:
+                if hasattr(ch, 'send_message_to'):
+                    ch.send_message_to(
+                        user_id,
+                        "🐔 สวัสดีครับ! ยินดีต้อนรับสู่ ChickGuard\n\n"
+                        "━━━━━━━━━━━━━━━━\n"
+                        "🤖 ระบบ AI เฝ้าระวังฟาร์มไก่\n"
+                        "🚨 แจ้งเตือนทันทีเมื่อตรวจพบความผิดปกติ\n"
+                        "📊 วิเคราะห์พฤติกรรมและความเสี่ยงโรค\n"
+                        "━━━━━━━━━━━━━━━━\n"
+                        "✅ คุณจะได้รับการแจ้งเตือนอัตโนมัติแล้ว!"
+                    )
+    return {"status": "ok"}
+
+@app.get("/api/notify/subscribers")
+async def get_subscribers():
+    """ดูจำนวนและรายการคนที่แอด Bot"""
+    return {
+        "count": len(line_subscribers),
+        "subscribers": [uid[:8] + "..." for uid in line_subscribers]
+    }
+
+@app.post("/api/notify/broadcast")
+async def broadcast_alert(risk_score: float = 75.0, risk_level: str = "high"):
+    """ส่ง alert ไปหาทุกคนที่แอด Bot (ใช้ตอน pitch!)"""
+    if not line_subscribers:
+        return {"success": False, "message": "❌ ยังไม่มีคนแอด Bot เลย — ให้ scan QR ก่อน"}
+
+    message = (
+        f"🚨 ChickGuard AI Alert!\n"
+        f"━━━━━━━━━━━━━━━━\n"
+        f"⏰ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        f"📊 Risk Score: {risk_score}/100\n"
+        f"🎯 Risk Level: {risk_level.upper()}\n\n"
+        f"💡 กรุณาตรวจสอบฟาร์มทันที!\n"
+        f"━━━━━━━━━━━━━━━━\n"
+        f"🐔 ChickGuard System"
+    )
+
+    results = []
+    for uid in line_subscribers:
+        ok = False
+        for ch in notification_manager.channels:
+            if hasattr(ch, 'send_message_to'):
+                ok = ch.send_message_to(uid, message)
+                break
+        results.append({"user": uid[:8] + "...", "success": ok})
+
+    success_count = sum(1 for r in results if r["success"])
+    return {
+        "success": success_count > 0,
+        "sent_to": success_count,
+        "total_subscribers": len(line_subscribers),
+        "results": results
+    }
+
+@app.post("/api/notify/test")
+async def notify_test():
+    """ส่ง test message ไปทุก channel ที่ configured (LINE, Email) เพื่อทดสอบ"""
+    results = notification_manager.test_all_channels()
+    any_success = any(results.values())
+    return {
+        "success": any_success,
+        "results": results,
+        "message": "✅ Test message sent! Check your LINE app." if any_success else "❌ No channels configured. Set LINE_CHANNEL_ACCESS_TOKEN and LINE_USER_ID in .env"
+    }
+
+@app.post("/api/notify/alert")
+async def notify_alert(risk_score: float = 75.0, risk_level: str = "high"):
+    """ส่ง alert จริง โดยกำหนด risk_score และ risk_level เอง (high/medium/low)"""
+    risk_data = {
+        "risk_score": risk_score,
+        "risk_level": risk_level,
+        "urgency": "immediate" if risk_level == "high" else "moderate",
+        "anomalies": [
+            {"description": f"Manual alert triggered via API (score: {risk_score})"}
+        ],
+        "recommendations": [
+            {"priority": "urgent" if risk_level == "high" else "high", "icon": "🔍", "action": "ตรวจสอบฟาร์มทันที"}
+        ]
+    }
+    results = notification_manager.send_alert(risk_data)
+    any_success = any(results.values())
+    return {
+        "success": any_success,
+        "results": results,
+        "message": f"✅ Alert sent! (risk_level={risk_level}, score={risk_score})" if any_success else "❌ No channels configured. Check .env"
     }
 
 if __name__ == "__main__":

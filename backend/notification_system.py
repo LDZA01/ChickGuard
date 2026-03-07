@@ -164,6 +164,35 @@ class LineMessagingChannel(NotificationChannel):
             logger.error(f"❌ LINE daily report error: {str(e)}")
             return False
     
+    def send_message_to(self, user_id: str, message: str) -> bool:
+        """ส่งข้อความไปหา user_id ที่กำหนด (ใช้สำหรับ broadcast)"""
+        if not self.channel_access_token:
+            logger.warning("⚠️  Cannot send - no channel_access_token")
+            return False
+        try:
+            import requests
+            response = requests.post(
+                self.api_url,
+                headers={
+                    'Content-Type': 'application/json',
+                    'Authorization': f'Bearer {self.channel_access_token}'
+                },
+                json={
+                    'to': user_id,
+                    'messages': [{'type': 'text', 'text': message}]
+                },
+                timeout=10
+            )
+            if response.status_code == 200:
+                logger.info(f"✅ LINE sent to {user_id[:8]}...")
+                return True
+            else:
+                logger.error(f"❌ LINE failed to {user_id[:8]}...: {response.status_code}")
+                return False
+        except Exception as e:
+            logger.error(f"❌ LINE send_message_to error: {str(e)}")
+            return False
+
     def test_connection(self) -> bool:
         if not self.enabled:
             logger.warning("⚠️  Cannot test - LINE Messaging API not configured")
