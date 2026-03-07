@@ -13,8 +13,7 @@ websockets==12.0
 # Notifications
 aiosmtplib==3.0.1
 
-# AI & Computer Vision (CPU-only, lightweight for Railway)
-ultralytics==8.1.24
+# Computer Vision (CPU-only, no CUDA — lightweight for Railway)
 opencv-python-headless==4.9.0.80
 numpy==1.26.3
 pillow==10.2.0
