@@ -798,8 +798,29 @@ async def get_stats():
 # LINE Notification Endpoints
 # =====================================================
 
-# เก็บ User ID ทุกคนที่แอด Bot (in-memory)
-line_subscribers: List[str] = []
+SUBSCRIBERS_FILE = os.path.join(os.path.dirname(__file__), "subscribers.json")
+
+def load_subscribers() -> List[str]:
+    """โหลด subscribers จากไฟล์ (ไม่หายแม้ restart)"""
+    try:
+        if os.path.exists(SUBSCRIBERS_FILE):
+            with open(SUBSCRIBERS_FILE, "r") as f:
+                return json.load(f)
+    except Exception:
+        pass
+    return []
+
+def save_subscribers(subscribers: List[str]):
+    """บันทึก subscribers ลงไฟล์ทันที"""
+    try:
+        with open(SUBSCRIBERS_FILE, "w") as f:
+            json.dump(subscribers, f)
+    except Exception as e:
+        logger.error(f"❌ Save subscribers error: {e}")
+
+# โหลดตอน startup — ไม่หายแม้ Railway restart
+line_subscribers: List[str] = load_subscribers()
+logger.info(f"📱 Loaded {len(line_subscribers)} LINE subscribers from disk")
 
 @app.post("/webhook/line")
 async def line_webhook(request: Request):
@@ -816,6 +837,7 @@ async def line_webhook(request: Request):
 
         if user_id and user_id not in line_subscribers:
             line_subscribers.append(user_id)
+            save_subscribers(line_subscribers)  # ✅ บันทึกทันที ไม่หายแม้ restart
             logger.info(f"📱 New LINE subscriber: {user_id[:8]}... (event: {event_type})")
 
             # ส่ง welcome message ทันทีที่แอด

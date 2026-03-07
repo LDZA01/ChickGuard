@@ -4,6 +4,9 @@
 .env.*.local
 *.env
 
+# LINE subscribers (user data — don't commit)
+backend/subscribers.json
+
 # Python
 backend/venv/
 backend/__pycache__/
