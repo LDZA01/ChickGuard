@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import {
-  Stethoscope,
   Video,
   MessageCircle,
   Phone,
@@ -364,29 +363,24 @@ export default function VetConnect() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-            <Stethoscope className="w-8 h-8 text-primary-500" />
-            {t.vetConnect.title}
-          </h1>
+          <h1 className="text-3xl font-bold text-gray-900">{t.vetConnect.title}</h1>
           <p className="text-gray-600 mt-1">{t.vetConnect.subtitle}</p>
         </div>
-        <div className="hidden md:flex flex-col items-end gap-1">
-          <div className="flex items-center gap-1.5 text-xs text-green-600 bg-green-50 px-3 py-1.5 rounded-full">
-            <Wifi className="w-3 h-3" />
-            <span>{t.vetConnect.aiDataConnected}</span>
-          </div>
+        <div className="flex items-center gap-1.5 text-xs text-green-600 bg-green-50 px-3 py-1.5 rounded-full">
+          <Wifi className="w-3 h-3" />
+          <span>{t.vetConnect.aiDataConnected}</span>
         </div>
       </div>
 
-      {/* Value Props Banner */}
+      {/* Value Props */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {[
-          { icon: Shield,   title: t.vetConnect.aiAssistedConsult, desc: t.vetConnect.aiAssistedConsultDesc, color: 'bg-blue-50 text-blue-600' },
-          { icon: Video,    title: t.vetConnect.liveFarmView,       desc: t.vetConnect.liveFarmViewDesc,      color: 'bg-purple-50 text-purple-600' },
-          { icon: FileText, title: t.vetConnect.digitalRecords,     desc: t.vetConnect.digitalRecordsDesc,    color: 'bg-green-50 text-green-600' },
+          { icon: Shield,   title: t.vetConnect.aiAssistedConsult, desc: t.vetConnect.aiAssistedConsultDesc, color: 'text-blue-600 bg-blue-50' },
+          { icon: Video,    title: t.vetConnect.liveFarmView,       desc: t.vetConnect.liveFarmViewDesc,      color: 'text-purple-600 bg-purple-50' },
+          { icon: FileText, title: t.vetConnect.digitalRecords,     desc: t.vetConnect.digitalRecordsDesc,    color: 'text-green-600 bg-green-50' },
         ].map(item => (
-          <div key={item.title} className="card flex items-start gap-3">
-            <div className={`p-2.5 rounded-xl ${item.color}`}>
+          <div key={item.title} className="bg-white rounded-2xl border border-gray-200 p-4 flex items-start gap-3">
+            <div className={`p-2.5 rounded-xl flex-shrink-0 ${item.color}`}>
               <item.icon className="w-5 h-5" />
             </div>
             <div>
