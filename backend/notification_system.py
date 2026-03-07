@@ -5,10 +5,15 @@ Supports: LINE Messaging API, Email, SMS (extensible)
 import logging
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import os
 
 logger = logging.getLogger(__name__)
+
+TZ_TH = timezone(timedelta(hours=7))
+
+def now_th() -> datetime:
+    return datetime.now(TZ_TH)
 
 
 class NotificationChannel(ABC):
@@ -47,7 +52,7 @@ class NotificationChannel(ABC):
         lines = [
             f"\n{emoji} ChickGuard Alert {emoji}",
             f"━━━━━━━━━━━━━━━━",
-            f"⏰ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+            f"⏰ {now_th().strftime('%Y-%m-%d %H:%M:%S')}",
             f"",
             f"📊 Disease Risk Score: {risk_score:.1f}/100",
             f"🎯 Risk Level: {risk_level.upper()}",
@@ -289,7 +294,7 @@ class LineMessagingChannel(NotificationChannel):
         lines = [
             f"\n📊 ChickGuard Daily Report",
             f"━━━━━━━━━━━━━━━━",
-            f"📅 {datetime.now().strftime('%Y-%m-%d')}",
+            f"📅 {now_th().strftime('%Y-%m-%d')}",
             f"",
             f"📈 Summary:",
             f"  • Average Risk: {summary.get('avg_risk', 0):.1f}/100",
@@ -378,7 +383,7 @@ class EmailChannel(NotificationChannel):
             from email.mime.text import MIMEText
             from email.mime.multipart import MIMEMultipart
             
-            subject = f"ChickGuard Daily Report - {datetime.now().strftime('%Y-%m-%d')}"
+            subject = f"ChickGuard Daily Report - {now_th().strftime('%Y-%m-%d')}"
             body = self._create_report_html(summary_data)
             
             msg = MIMEMultipart('alternative')
@@ -449,7 +454,7 @@ class EmailChannel(NotificationChannel):
             <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
                 <h2 style="color: {color};">🐔 ChickGuard Alert</h2>
                 <hr>
-                <p><strong>Time:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+                <p><strong>Time:</strong> {now_th().strftime('%Y-%m-%d %H:%M:%S')}</p>
                 <div style="background-color: {color}; color: white; padding: 15px; border-radius: 5px;">
                     <h3 style="margin: 0;">Risk Score: {risk_data['risk_score']:.1f}/100</h3>
                     <p style="margin: 5px 0;">Level: {risk_data['risk_level'].upper()}</p>
@@ -472,7 +477,7 @@ class EmailChannel(NotificationChannel):
         <body style="font-family: Arial, sans-serif;">
             <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
                 <h2>📊 ChickGuard Daily Report</h2>
-                <p><strong>Date:</strong> {datetime.now().strftime('%Y-%m-%d')}</p>
+                <p><strong>Date:</strong> {now_th().strftime('%Y-%m-%d')}</p>
                 <hr>
                 <h3>Summary</h3>
                 <ul>

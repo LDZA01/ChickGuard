@@ -6,7 +6,14 @@ For development when webcam permission issues occur
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+# Thailand timezone (UTC+7) — used for all timestamps so Railway (UTC) shows correct time
+TZ_TH = timezone(timedelta(hours=7))
+
+def now_th() -> datetime:
+    """Return current datetime in Thailand timezone (UTC+7)."""
+    return datetime.now(TZ_TH)
 import asyncio
 import logging
 import cv2
@@ -200,7 +207,7 @@ class VideoDetector:
             'total_detections': 0,
             'avg_confidence': 0,
             'fps': 0,
-            'last_update': datetime.now()
+            'last_update': now_th()
         }
         
         logger.info(f"🎬 Initializing VideoDetector (Source: {video_source})")
@@ -350,7 +357,7 @@ class VideoDetector:
             self.stats['avg_confidence'] = round(
                 total_confidence / len(detections), 3
             ) if detections else 0
-            self.stats['last_update'] = datetime.now()
+            self.stats['last_update'] = now_th()
             
             return detections
             
@@ -408,7 +415,7 @@ class VideoDetector:
         
         return {
             'farm_id': self.farm_id,
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': now_th().isoformat(),
             'total_objects': len(detections),
             'detections': detections,
             'class_counts': class_counts,
@@ -523,7 +530,7 @@ async def get_dashboard():
                     "type": "alert" if anom['severity'] == 'high' else "warning",
                     "severity": anom['severity'],
                     "message": anom['description'],
-                    "timestamp": datetime.now().strftime("%H:%M"),
+                    "timestamp": now_th().strftime("%H:%M"),
                     "read": False,
                     "camera": "CAM-01",
                     "zone": "A"
@@ -541,7 +548,7 @@ async def get_dashboard():
             "camera_status": "active",
             "temperature": round(farm["base_temp"] + (time.time() % 3), 1),
             "humidity": round(farm["base_humidity"] + (time.time() % 5), 1),
-            "lastUpdate": datetime.now().isoformat(),
+            "lastUpdate": now_th().isoformat(),
         })
         
     avg_risk = total_risk / len(FARM_DB) if len(FARM_DB) > 0 else 0
@@ -558,7 +565,7 @@ def get_risk_trend_internal():
     """Return per-farm risk trend series for multi-line chart (Option 2).
     Each entry: {farmId, farmName, data: [{time, risk}, ...]}
     """
-    now = datetime.now()
+    now = now_th()
     result = []
     for farm in FARM_DB:
         calc = farm_risk_calculators[farm["id"]]
@@ -598,7 +605,7 @@ async def get_current_risk(farm_id: int = 1):
     risk_data = farm_risk_calculators[farm_id].calculate_risk_score(behavior_data)
     
     return {
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": now_th().isoformat(),
         "risk_score": risk_data['risk_score'],
         "risk_level": risk_data['risk_level'],
         "urgency": risk_data['urgency'],
@@ -886,7 +893,7 @@ async def broadcast_alert(risk_score: float = 75.0, risk_level: str = "high"):
     message = (
         f"🚨 ChickGuard AI Alert!\n"
         f"━━━━━━━━━━━━━━━━\n"
-        f"⏰ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        f"⏰ {now_th().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
         f"📊 Risk Score: {risk_score}/100\n"
         f"🎯 Risk Level: {risk_level.upper()}\n\n"
         f"💡 กรุณาตรวจสอบฟาร์มทันที!\n"

@@ -4,11 +4,16 @@ Calculates risk score based on behavioral anomalies
 Following One Health principles
 """
 import numpy as np
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Tuple
 import logging
 
 logger = logging.getLogger(__name__)
+
+TZ_TH = timezone(timedelta(hours=7))
+
+def now_th() -> datetime:
+    return datetime.now(TZ_TH)
 
 
 class RiskScoreCalculator:
@@ -82,7 +87,7 @@ class RiskScoreCalculator:
         
         # Store in history
         risk_record = {
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': now_th().isoformat(),
             'risk_score': total_risk,
             'risk_level': risk_level,
             'anomaly_risk': anomaly_risk,
@@ -351,7 +356,7 @@ class RiskScoreCalculator:
                 return True, 'medium_risk'
             
             # Check cooldown (15 minutes)
-            time_since_alert = (datetime.now() - last_alert_time).total_seconds() / 60
+            time_since_alert = (now_th() - last_alert_time).total_seconds() / 60
             if time_since_alert >= 15:
                 return True, 'medium_risk_cooldown_expired'
         

@@ -3,12 +3,17 @@ Behavior Analysis Module for ChickGuard
 Analyzes chicken behavior patterns to detect early disease signs
 """
 import numpy as np
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Tuple
 from collections import deque
 import logging
 
 logger = logging.getLogger(__name__)
+
+TZ_TH = timezone(timedelta(hours=7))
+
+def now_th() -> datetime:
+    return datetime.now(TZ_TH)
 
 
 class BehaviorAnalyzer:
@@ -58,7 +63,7 @@ class BehaviorAnalyzer:
         Returns:
             Dictionary with behavior analysis results
         """
-        timestamp = datetime.now()
+        timestamp = now_th()
         
         # Calculate metrics
         object_count = len(detections)
