@@ -7,6 +7,7 @@ import Analytics from './pages/Analytics'
 import Alerts from './pages/Alerts'
 import Settings from './pages/Settings'
 import BackendStatus from './pages/BackendStatus'
+import VetConnect from './pages/VetConnect'
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
           <Route path="/farm/:id" element={<FarmDetail />} />
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/alerts" element={<Alerts />} />
+          <Route path="/vet" element={<VetConnect />} />
           <Route path="/settings" element={<Settings />} />
         </Route>
       </Routes>

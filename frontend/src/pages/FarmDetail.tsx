@@ -21,6 +21,7 @@ export default function FarmDetail() {
   const { id } = useParams()
   const [farmData, setFarmData] = useState<FarmDetailData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [feedErrors, setFeedErrors] = useState<Record<string, boolean>>({})
   const { t } = useLanguage()
 
   useEffect(() => {
@@ -79,11 +80,11 @@ export default function FarmDetail() {
           <h1 className="text-3xl font-bold text-gray-900">{farmData.name}</h1>
           <p className="text-gray-600 text-sm flex items-center gap-1 mt-0.5">
             <Wifi className="w-3 h-3 text-green-500" />
-            {cameras.filter(c => c.status === 'active').length} / {cameras.length} cameras active
+            {cameras.filter(c => c.status === 'active').length} / {cameras.length} {t.farmDetailExtra.liveFeeds}
           </p>
         </div>
         <div className="text-right">
-          <p className="text-sm text-gray-500">Health Score</p>
+          <p className="text-sm text-gray-500">{t.farmDetailExtra.healthScore}</p>
           <p className="text-2xl font-bold text-green-600">{Math.round(farmData.healthScore)}/100</p>
         </div>
       </div>
@@ -95,7 +96,7 @@ export default function FarmDetail() {
           <p className="text-2xl font-bold mt-1">{farmData.currentStats.activeChickens.toLocaleString()}</p>
         </div>
         <div className="card">
-          <p className="text-sm text-gray-600">Feeding Rate</p>
+          <p className="text-sm text-gray-600">{t.farmDetailExtra.feedingPatternAnalysis}</p>
           <p className="text-2xl font-bold mt-1">{farmData.currentStats.feedingRate}%</p>
         </div>
         <div className="card">
@@ -110,7 +111,7 @@ export default function FarmDetail() {
 
       {/* Live Camera Streams — 1 card per camera */}
       <div className="card space-y-4">
-        <h2 className="text-xl font-bold">Live Camera Feeds · {cameras.length} stream{cameras.length > 1 ? 's' : ''}</h2>
+        <h2 className="text-xl font-bold">{t.farmDetailExtra.liveFeeds} · {cameras.length} {cameras.length > 1 ? t.farmDetailExtra.streamsPlural : t.farmDetailExtra.streams}</h2>
         <div className={`grid ${gridClass} gap-4`}>
           {cameras.map((camera, index) => (
             <div
@@ -119,24 +120,21 @@ export default function FarmDetail() {
               style={{ height: cameras.length === 1 ? '420px' : '260px' }}
             >
               {camera.status === 'active' ? (
+                feedErrors[camera.id] ? (
+                  <div className="absolute inset-0 bg-slate-800 flex flex-col items-center justify-center text-white gap-2 opacity-60">
+                    <p className="text-sm">{t.farmDetailExtra.feedUnavailable}</p>
+                  </div>
+                ) : (
                 <img
                   src={api.getVideoFeedUrl(farmId)}
                   alt={`Camera ${camera.name}`}
                   className="absolute inset-0 w-full h-full object-cover"
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none'
-                    const parent = e.currentTarget.parentElement
-                    if (parent) {
-                      const div = document.createElement('div')
-                      div.className = 'absolute inset-0 bg-slate-800 flex flex-col items-center justify-center text-white gap-2'
-                      div.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A2 2 0 0122 9.618v4.764a2 2 0 01-2.447 1.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" /></svg><span class="text-sm opacity-60">Feed unavailable</span>'
-                      parent.appendChild(div)
-                    }
-                  }}
+                  onError={() => setFeedErrors(prev => ({ ...prev, [camera.id]: true }))}
                 />
+                )
               ) : (
                 <div className="absolute inset-0 bg-slate-800 flex flex-col items-center justify-center text-white gap-2 opacity-60">
-                  <p className="text-sm">Camera offline</p>
+                  <p className="text-sm">{t.farmDetailExtra.cameraOffline}</p>
                 </div>
               )}
 

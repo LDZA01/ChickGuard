@@ -85,10 +85,10 @@ export default function Dashboard() {
       setTimeout(() => {
         // behavior_summary is a dict — build a readable sentence from its fields
         const summary = data.behavior_summary
-        let msg = "System stable."
+        let msg = t.dashboardExtra.systemStable
         if (summary && typeof summary === 'object') {
           if (summary.status === 'no_data') {
-            msg = "Not enough data yet. Keep monitoring."
+            msg = t.dashboardExtra.notEnoughData
           } else {
             const cur = summary.current
             const avg = summary.averages
@@ -106,7 +106,7 @@ export default function Dashboard() {
       }, 800);
     } else {
       setTimeout(() => {
-        setDiagnosisResult("Unable to connect to AI Diagnostic Engine. Operating in mock data mode.");
+        setDiagnosisResult(t.dashboardExtra.unableToConnect);
         setIsDiagnosing(false);
       }, 1000);
     }
@@ -118,7 +118,7 @@ export default function Dashboard() {
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-600">{t.common.loading}</p>
-          <p className="text-sm text-gray-500 mt-2">Connecting to backend...</p>
+          <p className="text-sm text-gray-500 mt-2">{t.dashboardExtra.connectingBackend}</p>
         </div>
       </div>
     )
@@ -192,12 +192,12 @@ export default function Dashboard() {
           {isConnected ? (
             <>
               <Wifi className="w-4 h-4" />
-              <span>Live AI Data</span>
+              <span>{t.dashboardExtra.liveAIData}</span>
             </>
           ) : (
             <>
               <WifiOff className="w-4 h-4" />
-              <span>Mock Data</span>
+              <span>{t.dashboardExtra.mockData}</span>
             </>
           )}
         </div>
@@ -238,7 +238,7 @@ export default function Dashboard() {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-2">
             <Cpu className="text-primary-500" size={24} />
-            <h3 className="font-bold text-lg">AI Diagnostic</h3>
+            <h3 className="font-bold text-lg">{t.dashboardExtra.aiDiagnostic}</h3>
           </div>
           <div className="flex items-center gap-2">
             <select
@@ -259,7 +259,7 @@ export default function Dashboard() {
               className="bg-slate-900 text-white px-3 py-1.5 rounded-lg text-sm font-bold flex items-center space-x-2 hover:bg-slate-800 disabled:opacity-50 transition-all cursor-pointer"
             >
               {isDiagnosing ? <RefreshCw className="animate-spin" size={16} /> : <Zap size={16} />}
-              <span>{isDiagnosing ? 'Analyzing...' : 'Run Scan'}</span>
+              <span>{isDiagnosing ? t.dashboardExtra.analyzing : t.dashboardExtra.runScan}</span>
             </button>
           </div>
         </div>
@@ -271,14 +271,14 @@ export default function Dashboard() {
                 <Activity size={14} />
               </div>
               <div>
-                <p className="text-sm font-medium text-primary-900 mb-1">Health Assessment</p>
+                <p className="text-sm font-medium text-primary-900 mb-1">{t.dashboardExtra.healthAssessment}</p>
                 <p className="text-sm text-primary-800 leading-relaxed italic">"{diagnosisResult}"</p>
               </div>
             </div>
           </div>
         ) : (
           <div className="border-2 border-dashed border-gray-100 p-6 rounded-xl flex flex-col items-center justify-center text-gray-400 text-center">
-            <p className="text-sm">Click 'Run Scan' to analyze live visual & sensor behavior data</p>
+            <p className="text-sm">{t.dashboardExtra.scanPrompt}</p>
           </div>
         )}
       </div>
