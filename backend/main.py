@@ -511,20 +511,21 @@ async def get_dashboard():
         total_risk += risk_data['risk_score']
         
         if risk_data.get('anomalies'):
-            # Convert anomalies to alert format
             for anom in risk_data['anomalies']:
-                 today_alerts.append({
-                     "id": str(int(time.time())) + str(farm["id"]),
-                     "farmId": str(farm["id"]),
-                     "farmName": farm["name"],
-                     "type": "alert" if anom['severity'] == 'high' else "warning",
-                     "severity": anom['severity'],
-                     "message": anom['description'],
-                     "timestamp": datetime.now().strftime("%H:%M"),
-                     "read": False,
-                     "camera": "CAM-01",
-                     "zone": "A"
-                 })
+                # Use stable ID so the same alert doesn't re-appear every poll
+                stable_id = f"{farm['id']}-{anom['severity']}-{anom['description'][:20]}"
+                today_alerts.append({
+                    "id": stable_id,
+                    "farmId": str(farm["id"]),
+                    "farmName": farm["name"],
+                    "type": "alert" if anom['severity'] == 'high' else "warning",
+                    "severity": anom['severity'],
+                    "message": anom['description'],
+                    "timestamp": datetime.now().strftime("%H:%M"),
+                    "read": False,
+                    "camera": "CAM-01",
+                    "zone": "A"
+                })
         
         farm_responses.append({
             "id": str(farm["id"]),

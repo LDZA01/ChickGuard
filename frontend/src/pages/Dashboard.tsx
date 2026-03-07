@@ -48,7 +48,18 @@ export default function Dashboard() {
         setIsConnected(false)
       } else {
         setIsConnected(true)
-        setDashboardData(data)
+        // Deduplicate alerts — only keep ones with IDs we haven't seen yet,
+        // then merge with existing so they don't disappear on next poll
+        setDashboardData(prev => {
+          if (!prev) return data
+          const incoming = data.alerts ?? []
+          const existingIds = new Set((prev.alerts ?? []).map((a: any) => a.id))
+          const newAlerts = incoming.filter((a: any) => !existingIds.has(a.id))
+          return {
+            ...data,
+            alerts: [...(prev.alerts ?? []), ...newAlerts],
+          }
+        })
       }
 
       if (isInitial) setLoading(false)
