@@ -1,0 +1,23 @@
+# Core Framework
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+pydantic==2.5.3
+python-multipart==0.0.6
+python-dotenv==1.0.0
+
+# HTTP
+requests==2.31.0
+aiofiles==23.2.1
+websockets==12.0
+
+# Notifications
+aiosmtplib==3.0.1
+
+# AI & Computer Vision (CPU-only, lightweight for Railway)
+ultralytics==8.1.24
+opencv-python-headless==4.9.0.80
+numpy==1.26.3
+pillow==10.2.0
+
+# Utils
+schedule==1.2.0
