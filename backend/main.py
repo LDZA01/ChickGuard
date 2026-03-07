@@ -3,7 +3,7 @@
 Alternative: Use video file instead of webcam
 For development when webcam permission issues occur
 """
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, BackgroundTasks
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from datetime import datetime, timedelta
@@ -74,6 +74,9 @@ ALERT_COOLDOWN_MINUTES = int(os.getenv("ALERT_COOLDOWN_MINUTES", "15"))
 MEDIUM_RISK_THRESHOLD = int(os.getenv("MEDIUM_RISK_THRESHOLD", "40"))
 HIGH_RISK_THRESHOLD = int(os.getenv("HIGH_RISK_THRESHOLD", "70"))
 
+# Scaling factor: how many real chickens per detected object in the frame
+CHICKEN_SCALE_FACTOR = int(os.getenv("CHICKEN_SCALE_FACTOR", "1000"))
+
 # Initialize behavior analysis and risk calculation
 behavior_analyzer = BehaviorAnalyzer(history_window=300)
 risk_calculator = RiskScoreCalculator()
@@ -99,76 +102,81 @@ logger.info(f"📱 Notifications: {notification_manager.get_status()['enabled_ch
 # =====================================================
 
 class SyntheticFrameGenerator:
-    """Generate synthetic frames for testing without camera"""
+    """Generate synthetic frames matching new UI mockup style"""
     
     def __init__(self, width=1280, height=720):
         self.width = width
         self.height = height
         self.frame_count = 0
         
+    def _draw_chicken(self, img, cx, cy, radius):
+        """Draw a simple chicken approximation instead of just a circle"""
+        # Body (white/grey)
+        cv2.circle(img, (cx, cy), radius, (240, 240, 240), -1)
+        # Comb/Wattle (Red)
+        cv2.circle(img, (cx, cy - radius), int(radius*0.4), (0, 0, 220), -1)
+        cv2.circle(img, (cx - int(radius*0.6), cy), int(radius*0.3), (0, 0, 220), -1)
+        # Beak (Yellow)
+        pts = np.array([[cx-radius, cy-int(radius*0.2)], [cx-radius, cy+int(radius*0.2)], [cx-int(radius*1.4), cy]], np.int32)
+        cv2.fillPoly(img, [pts], (0, 200, 255))
+        # Eye (Black)
+        cv2.circle(img, (cx - int(radius*0.4), cy - int(radius*0.3)), int(radius*0.15), (0, 0, 0), -1)
+        
     def generate_frame(self):
-        """Generate a frame with moving objects"""
-        # Create blank frame
+        """Generate a frame with moving objects matching UI mockup"""
+        # Create dark background #1a2421
         frame = np.zeros((self.height, self.width, 3), dtype=np.uint8)
+        frame[:] = [33, 36, 26] # BGR for dark green-ish
         
-        # Background gradient
-        for i in range(self.height):
-            intensity = int(180 + (i / self.height) * 40)
-            frame[i, :] = [intensity, intensity, intensity]
+        # Add dot matrix pattern (simulating grid)
+        dot_spacing = 40
+        for y in range(0, self.height, dot_spacing):
+            for x in range(0, self.width, dot_spacing):
+                 cv2.circle(frame, (x, y), 1, (60, 70, 50), -1)
         
-        # Add timestamp
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        cv2.putText(frame, f"Synthetic Frame - {timestamp}", 
-                   (30, 40), cv2.FONT_HERSHEY_SIMPLEX, 
-                   0.8, (0, 255, 0), 2)
-        
-        # Add frame counter
-        cv2.putText(frame, f"Frame: {self.frame_count}", 
-                   (30, 80), cv2.FONT_HERSHEY_SIMPLEX, 
-                   0.7, (255, 255, 0), 2)
-        
-        # Add moving "objects" (circles)
-        num_objects = np.random.randint(3, 8)
-        t = self.frame_count * 0.05
+        # Add moving "chickens"
+        # We can seed based on width/height slightly so farms look different
+        # Let's add a parameter hack for variety
+        random_offset = getattr(self, 'farm_offset', 0)
+        num_objects = 5 + (random_offset % 4) # Varies by farm
+        t = self.frame_count * 0.03
         
         for i in range(num_objects):
-            # Calculate position (circular motion)
-            cx = int(self.width/2 + 200 * np.cos(t + i * 2 * np.pi / num_objects))
-            cy = int(self.height/2 + 150 * np.sin(t + i * 2 * np.pi / num_objects))
+            # Calculate position with some offset physics
+            base_cx = int(self.width/2 + (300 - random_offset*20) * np.cos(t + i * 2 * np.pi / num_objects))
+            base_cy = int(self.height/2 + 200 * np.sin(t*1.5 + i * 2 * np.pi / num_objects))
             
-            # Draw object
-            radius = np.random.randint(20, 40)
-            color = (
-                np.random.randint(100, 255),
-                np.random.randint(100, 255),
-                np.random.randint(100, 255)
-            )
-            cv2.circle(frame, (cx, cy), radius, color, -1)
-            cv2.circle(frame, (cx, cy), radius, (0, 0, 0), 2)
+            # Add some jitter
+            cx = base_cx + int(20 * np.sin(t*5 + i))
+            cy = base_cy + int(20 * np.cos(t*4 + i))
             
-            # Add label
-            cv2.putText(frame, f"Object {i+1}", 
-                       (cx - 30, cy - radius - 10),
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
-        
-        # Add info box
-        cv2.rectangle(frame, (20, self.height - 100), (400, self.height - 20), 
-                     (0, 0, 0), -1)
-        cv2.rectangle(frame, (20, self.height - 100), (400, self.height - 20), 
-                     (0, 255, 0), 2)
-        
-        info_lines = [
-            "✅ No webcam needed!",
-            "✅ Synthetic frame mode",
-            f"✅ Objects: {num_objects}"
-        ]
-        
-        y_pos = self.height - 80
-        for line in info_lines:
-            cv2.putText(frame, line, (30, y_pos),
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
-            y_pos += 25
-        
+            # Keep within bounds
+            cx = max(100, min(self.width - 100, cx))
+            cy = max(100, min(self.height - 100, cy))
+            
+            radius = 35
+            
+            # Draw synthetic chicken
+            self._draw_chicken(frame, cx, cy, radius)
+            
+            # Draw bounding box matching the UI mockup (Green rounded)
+            # OpenCV doesn't do rounded rects easily, so we draw normal rect
+            x1, y1 = cx - radius - 10, cy - radius - 20
+            x2, y2 = cx + radius + 10, cy + radius + 10
+            cv2.rectangle(frame, (x1, y1), (x2, y2), (100, 200, 120), 2)
+            
+            # Add label box on top of bounding box
+            conf = int(85 + (np.sin(t+i) * 10)) # fluctuating 75-95%
+            label = f"Chicken {conf}%"
+            
+            # Black bg for text
+            (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 1)
+            cv2.rectangle(frame, (x1, y1 - th - 10), (x1 + tw + 10, y1), (20, 30, 20), -1)
+            cv2.putText(frame, "Chicken ", (x1 + 5, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (120, 220, 140), 1)
+            # Mocking the dual color (Chicken = green, % = white)
+            (tw_chicken, _), _ = cv2.getTextSize("Chicken ", cv2.FONT_HERSHEY_SIMPLEX, 0.6, 1)
+            cv2.putText(frame, f"{conf}%", (x1 + 5 + tw_chicken, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
+
         self.frame_count += 1
         return frame
 
@@ -176,9 +184,10 @@ class SyntheticFrameGenerator:
 class VideoDetector:
     """Real-time object detection using YOLOv8 with video file or synthetic frames"""
     
-    def __init__(self, video_source="synthetic", model_name='yolov8n.pt'):
+    def __init__(self, video_source="synthetic", model_name='yolov8n.pt', farm_id=1):
         self.video_source = video_source
         self.model_name = model_name
+        self.farm_id = farm_id
         self.model = None
         self.frame_generator = None
         self.is_running = False
@@ -211,9 +220,10 @@ class VideoDetector:
             
             # Initialize video source
             if self.video_source == "synthetic":
-                logger.info("🎨 Using synthetic frame generator (no camera needed!)")
+                logger.info(f"🎨 Using synthetic frame generator for farm {self.farm_id}")
                 self.frame_generator = SyntheticFrameGenerator()
-                logger.info("✅ Synthetic generator initialized")
+                self.frame_generator.farm_offset = self.farm_id # Add unique feel
+                logger.info(f"✅ Synthetic generator initialized for farm {self.farm_id}")
             else:
                 # Future: support video files
                 logger.warning(f"⚠️  Video file not implemented yet, using synthetic")
@@ -285,6 +295,19 @@ class VideoDetector:
     
     def _process_frame(self, frame):
         """Process single frame with YOLO"""
+        if self.video_source == "synthetic":
+            # Mock detection for synthetic mode so API returns correct data
+            num_objects = 5 + (self.farm_id % 4) # matching generator
+            return [{
+                'id': i,
+                'class': 'chicken',
+                'class_id': 0,
+                'confidence': 0.85 + (i * 0.01),
+                'bbox': [100 + i*50, 100 + i*50, 200 + i*50, 200 + i*50],
+                'center': [150 + i*50, 150 + i*50],
+                'area': 10000
+            } for i in range(num_objects)]
+            
         if not self.model:
             # Mock detection for testing
             return [{
@@ -351,24 +374,25 @@ class VideoDetector:
         return frame
     
     def _annotate_frame(self, frame, detections):
-        """Draw bounding boxes"""
-        for det in detections:
-            x1, y1, x2, y2 = det['bbox']
-            confidence = det['confidence']
-            class_name = det['class']
-            
-            color = (0, 255, 0)
-            cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-            
-            label = f"{class_name} {confidence:.2f}"
-            cv2.putText(frame, label, (x1, y1 - 5),
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+        """Draw bounding boxes (skip bounding boxes if synthetic, as generator already draws styled ones)"""
+        # If synthetic, we only want to draw global stats, not re-draw square boxes
+        is_synthetic = (self.video_source == "synthetic")
         
-        # Stats overlay
-        cv2.putText(frame, f"FPS: {self.stats['fps']:.1f}", (10, 30),
-                   cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-        cv2.putText(frame, f"Objects: {len(detections)}", (10, 60),
-                   cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+        if not is_synthetic:
+            for det in detections:
+                x1, y1, x2, y2 = det['bbox']
+                confidence = det['confidence']
+                class_name = det['class']
+                
+                color = (0, 255, 0)
+                cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+                
+                label = f"{class_name} {confidence:.2f}"
+                cv2.putText(frame, label, (x1, y1 - 5),
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+        
+        # Stats overlay is now optional, as frontend overlay handles FPS & Object count nicely.
+        # But we'll leave it out to exactly match the clean mockup design in temp.md.
         
         return frame
     
@@ -385,7 +409,7 @@ class VideoDetector:
         activity_level = min(100, len(detections) * 10)
         
         return {
-            'farm_id': 1,
+            'farm_id': self.farm_id,
             'timestamp': datetime.now().isoformat(),
             'total_objects': len(detections),
             'detections': detections,
@@ -397,8 +421,19 @@ class VideoDetector:
             'stats': self.stats.copy()
         }
 
-# Initialize detector
-detector = VideoDetector(video_source=VIDEO_SOURCE)
+# =====================================================
+# Farm Database and Detectors mapping
+# =====================================================
+
+FARM_DB = [
+    {"id": 1, "name": "Healthy Farm 1", "location": "Nakhon Pathom", "base_temp": 30.5, "base_humidity": 65},
+    {"id": 2, "name": "Healthy Farm 2", "location": "Suphan Buri", "base_temp": 31.0, "base_humidity": 70},
+    {"id": 3, "name": "Healthy Farm 3", "location": "Ratchaburi", "base_temp": 29.5, "base_humidity": 60}
+]
+
+detectors = {}
+for farm in FARM_DB:
+    detectors[farm["id"]] = VideoDetector(video_source=VIDEO_SOURCE, farm_id=farm["id"])
 
 # =====================================================
 # API Endpoints (same as webcam version)
@@ -406,32 +441,36 @@ detector = VideoDetector(video_source=VIDEO_SOURCE)
 
 @app.on_event("startup")
 async def startup_event():
-    logger.info("🚀 Starting ChickGuard Video AI System...")
-    success = detector.start()
-    if success:
-        logger.info("✅ Video AI detection started (no webcam needed!)")
-    else:
-        logger.error("❌ Failed to start detector")
+    logger.info("🚀 Starting ChickGuard Video AI System (Multi-Farm)...")
+    for farm_id, detector in detectors.items():
+        success = detector.start()
+        if success:
+            logger.info(f"✅ Video AI detection started for Farm {farm_id}")
+        else:
+            logger.error(f"❌ Failed to start detector for Farm {farm_id}")
 
 @app.on_event("shutdown")
 async def shutdown_event():
     logger.info("🛑 Shutting down...")
-    detector.stop()
+    for farm_id, detector in detectors.items():
+        detector.stop()
 
 @app.get("/")
 async def root():
     return {
-        "message": "ChickGuard Video AI API (No webcam needed!)",
-        "version": "3.1.0",
+        "message": "ChickGuard Video AI API (Multi-Farm)",
+        "version": "4.0.0",
         "status": "running",
-        "mode": "video_synthetic",
-        "yolo_available": YOLO_AVAILABLE,
-        "webcam_needed": False
+        "active_farms": list(detectors.keys())
     }
 
 @app.get("/api/detection/live")
-async def get_live_detection():
-    """Get live detection with behavior analysis"""
+async def get_live_detection(farm_id: int = 1):
+    """Get live detection with behavior analysis for a specific farm"""
+    detector = detectors.get(farm_id)
+    if not detector:
+        return {"error": "Farm not found"}
+        
     detection_data = detector.get_detection_data()
     detections = detector.current_detections
     
@@ -440,18 +479,6 @@ async def get_live_detection():
     
     # Calculate risk score
     risk_data = risk_calculator.calculate_risk_score(behavior_data)
-    
-    # Check if alert should be sent
-    if risk_data['alert_required']:
-        should_send, reason = risk_calculator.should_send_alert(
-            risk_data['risk_score'],
-            getattr(notification_manager, 'last_alert_time', None)
-        )
-        
-        if should_send:
-            results = notification_manager.send_alert(risk_data)
-            notification_manager.last_alert_time = datetime.now()
-            risk_data['alert_sent'] = results
     
     return {
         "detection": detection_data,
@@ -463,48 +490,101 @@ async def get_live_detection():
 
 @app.get("/api/dashboard")
 async def get_dashboard():
-    """Dashboard with disease risk monitoring"""
-    detection = detector.get_detection_data()
-    detections = detector.current_detections
+    """Dashboard aggregating all farms data"""
+    farm_responses = []
+    total_objects = 0
+    today_alerts = []
+    total_risk = 0
     
-    # Get behavior and risk analysis
-    behavior_data = behavior_analyzer.analyze(detections)
-    risk_data = risk_calculator.calculate_risk_score(behavior_data)
-    
-    farms = [{
-        "id": 1,
-        "name": "ChickGuard Farm - One Health System 🐔",
-        "location": "Smart Farm",
-        "objects": detection['total_objects'],
-        "healthScore": max(0, 100 - risk_data['risk_score']),  # Inverse of risk
-        "riskScore": risk_data['risk_score'],
-        "riskLevel": risk_data['risk_level'],
-        "status": "active",
-        "camera_status": "synthetic",
-        "detections": detection['class_counts'],
-        "lastUpdate": datetime.now().isoformat(),
-        "anomalies": len(risk_data.get('anomalies', [])),
-        "behaviorStatus": behavior_data['behavior_scores']['activity_level']
-    }]
-    
+    for farm in FARM_DB:
+        detector = detectors.get(farm["id"])
+        if not detector:
+            continue
+            
+        detection = detector.get_detection_data()
+        detections = detector.current_detections
+        
+        behavior_data = behavior_analyzer.analyze(detections)
+        risk_data = risk_calculator.calculate_risk_score(behavior_data)
+        
+        total_objects += detection['total_objects']
+        total_risk += risk_data['risk_score']
+        
+        if risk_data.get('anomalies'):
+            # Convert anomalies to alert format
+            for anom in risk_data['anomalies']:
+                 today_alerts.append({
+                     "id": str(int(time.time())) + str(farm["id"]),
+                     "farmId": str(farm["id"]),
+                     "farmName": farm["name"],
+                     "type": "alert" if anom['severity'] == 'high' else "warning",
+                     "severity": anom['severity'],
+                     "message": anom['description'],
+                     "timestamp": datetime.now().strftime("%H:%M"),
+                     "read": False,
+                     "camera": "CAM-01",
+                     "zone": "A"
+                 })
+        
+        farm_responses.append({
+            "id": str(farm["id"]),
+            "name": farm["name"],
+            "location": farm["location"],
+            "totalChickens": detection['total_objects'] * CHICKEN_SCALE_FACTOR,  # Configurable via CHICKEN_SCALE_FACTOR env
+            "healthScore": max(0, 100 - risk_data['risk_score']),
+            "riskScore": risk_data['risk_score'],
+            "riskLevel": risk_data['risk_level'],
+            "status": "warning" if risk_data['risk_score'] > 50 else "good",
+            "camera_status": "active",
+            "temperature": round(farm["base_temp"] + (time.time() % 3), 1),
+            "humidity": round(farm["base_humidity"] + (time.time() % 5), 1),
+            "lastUpdate": datetime.now().isoformat(),
+        })
+        
+    avg_risk = total_risk / len(FARM_DB) if len(FARM_DB) > 0 else 0
     return {
-        "totalObjects": detection['total_objects'],
-        "todayAlerts": len(risk_data.get('anomalies', [])),
-        "systemEfficiency": round(detector.stats['fps'] / PROCESS_FPS * 100, 1),
-        "riskScore": risk_data['risk_score'],
-        "riskLevel": risk_data['risk_level'],
-        "farms": farms,
-        "realTimeData": {
-            "detection": detection,
-            "behavior": behavior_data,
-            "risk": risk_data
-        },
-        "mode": "one_health_system"
+        "totalChickens": total_objects * CHICKEN_SCALE_FACTOR,
+        "todayAlerts": len(today_alerts),
+        "averageHealth": round(max(0, 100 - avg_risk), 1),
+        "farms": farm_responses,
+        "alerts": today_alerts,
+        "riskTrend": get_risk_trend_internal() # Reusing risk trend format
     }
 
+def get_risk_trend_internal():
+    """Format risk trend from real risk_calculator history. Falls back to synthetic if no history yet."""
+    history = risk_calculator.risk_history
+    now = datetime.now()
+
+    if len(history) >= 2:
+        # Sample up to 24 evenly-spaced points from real history
+        step = max(1, len(history) // 24)
+        sampled = history[::step][-24:]
+        trend = []
+        for i, record in enumerate(sampled):
+            # Parse timestamp or use sequential labels
+            try:
+                ts = datetime.fromisoformat(record['timestamp'])
+                label = ts.strftime("%H:%M")
+            except Exception:
+                label = f"{i*1:02d}:00"
+            trend.append({"time": label, "risk": round(record['risk_score'])})
+        return trend
+    else:
+        # Cold start fallback — synthetic until real history accumulates
+        trend = []
+        for i in range(24):
+            t = (now - timedelta(hours=23 - i)).strftime("%H:00")
+            trend.append({"time": t, "risk": int(20 + (10 * np.sin(i)) + np.random.randint(0, 10))})
+        return trend
+
 @app.get("/api/risk/current")
-async def get_current_risk():
-    """Get current disease risk score"""
+async def get_current_risk(farm_id: int = 1):
+    """Get current disease risk score for a farm"""
+    detector = detectors.get(farm_id)
+    if not detector:
+        return {"error": "Farm not found"}
+        
     detections = detector.current_detections
     behavior_data = behavior_analyzer.analyze(detections)
     risk_data = risk_calculator.calculate_risk_score(behavior_data)
@@ -522,63 +602,170 @@ async def get_current_risk():
 @app.get("/api/risk/trend")
 async def get_risk_trend():
     """Get risk trend over time"""
-    trend = risk_calculator.get_risk_trend(duration_minutes=60)
-    return trend
+    return get_risk_trend_internal()
 
-@app.get("/api/behavior/summary")
-async def get_behavior_summary():
-    """Get behavior analysis summary"""
-    return behavior_analyzer.get_summary()
+@app.get("/api/analytics")
+async def get_analytics():
+    """Get analytics aggregated from real behavior and risk history"""
+    history = list(behavior_analyzer.detection_history)
+    risk_hist = risk_calculator.risk_history
 
-@app.post("/api/alert/test")
-async def test_alert():
-    """Test all notification channels"""
-    # Create test risk data
-    test_risk = {
-        'risk_score': 75,
-        'risk_level': 'high',
-        'urgency': 'urgent',
-        'anomalies': [{
-            'type': 'test',
-            'severity': 'high',
-            'description': 'This is a test alert'
-        }],
-        'recommendations': [{
-            'priority': 'urgent',
-            'action': 'Test notification',
-            'reason': 'Testing notification system',
-            'icon': '🧪'
-        }]
-    }
-    
-    results = notification_manager.send_alert(test_risk)
-    
+    # --- Health Trend: last 7 data-points from risk history, labeled by day ---
+    days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    if len(risk_hist) >= 7:
+        step = max(1, len(risk_hist) // 7)
+        sampled = risk_hist[::step][-7:]
+        health_trend = [
+            {
+                "date": days[i % 7],
+                "health": round(max(0, 100 - r['risk_score'])),
+                "mortality": round(r['risk_score'] / 20)  # rough proxy
+            }
+            for i, r in enumerate(sampled)
+        ]
+    else:
+        health_trend = [
+            {"date": days[i], "health": 85 + i, "mortality": max(0, 2 - i // 2)}
+            for i in range(7)
+        ]
+
+    # --- Behavior Analysis: bucket detection_history into hourly activity ---
+    hour_buckets: dict = {}
+    for point in history:
+        hour = point['timestamp'].hour if hasattr(point['timestamp'], 'hour') else 0
+        if hour not in hour_buckets:
+            hour_buckets[hour] = []
+        hour_buckets[hour].append(point)
+
+    behavior_analysis = []
+    for hour in sorted(hour_buckets.keys()):
+        pts = hour_buckets[hour]
+        avg_movement = float(np.mean([p['movement'] for p in pts]))
+        avg_density = float(np.mean([p['density'] for p in pts]))
+        normal_pct = round(max(0, 100 - avg_density))
+        abnormal_pct = round(avg_density * 0.8)
+        alert_pct = round(max(0, avg_density - 60))
+        behavior_analysis.append({
+            "hour": hour,
+            "activity": round(avg_movement),
+            "normal": normal_pct,
+            "abnormal": abnormal_pct,
+            "alert": alert_pct
+        })
+
+    # Fallback if no history yet
+    if not behavior_analysis:
+        behavior_analysis = [
+            {"hour": 0,  "activity": 20, "normal": 95, "abnormal": 5, "alert": 0},
+            {"hour": 6,  "activity": 40, "normal": 90, "abnormal": 8, "alert": 2},
+            {"hour": 12, "activity": 85, "normal": 88, "abnormal": 10, "alert": 2},
+            {"hour": 18, "activity": 65, "normal": 92, "abnormal": 7, "alert": 1}
+        ]
+
     return {
-        "success": any(results.values()),
-        "results": results,
-        "message": "Test alerts sent to all configured channels",
-        "channels_status": notification_manager.get_status()
+        "healthTrend": health_trend,
+        "behaviorAnalysis": behavior_analysis,
+        # productionMetrics and diseaseRisk need real IoT/lab data — kept as reference values
+        "productionMetrics": [
+            {"week": "W1", "weight": 45,  "growth": 10, "mortality": 1},
+            {"week": "W2", "weight": 120, "growth": 25, "mortality": 2},
+            {"week": "W3", "weight": 250, "growth": 40, "mortality": 1},
+            {"week": "W4", "weight": 450, "growth": 65, "mortality": 3}
+        ],
+        "diseaseRisk": [
+            {"disease": "Avian Influenza",      "risk": 15, "trend": "stable"},
+            {"disease": "Newcastle Disease",    "risk": 5,  "trend": "down"},
+            {"disease": "Infectious Bronchitis", "risk": 45, "trend": "up"}
+        ]
     }
 
-@app.get("/api/notifications/status")
-async def get_notification_status():
-    """Get notification channels status"""
-    return notification_manager.get_status()
+@app.get("/api/farm/{farm_id}")
+async def get_farm_detail(farm_id: int):
+    """Get detail for a specific farm"""
+    detector = detectors.get(farm_id)
+    if not detector:
+        return {"error": "Farm not found"}
+        
+    farm_info = next((f for f in FARM_DB if f["id"] == farm_id), None)
+    if not farm_info:
+        return {"error": "Farm info not found"}
 
-@app.post("/api/notifications/test-all")
-async def test_all_notifications():
-    """Test all configured notification channels"""
-    results = notification_manager.test_all_channels()
-    
+    detection = detector.get_detection_data()
+    detections = detector.current_detections
+    behavior_data = behavior_analyzer.analyze(detections)
+    risk_data = risk_calculator.calculate_risk_score(behavior_data)
+
+    active_chickens = detection['total_objects'] * CHICKEN_SCALE_FACTOR  # Configurable via CHICKEN_SCALE_FACTOR env
+    health_score = max(0, 100 - risk_data['risk_score'])  # Same formula as dashboard
+    # Split total between 2 cameras (55% / 45%) so they add up to the stats card total
+    cam1_det = round(active_chickens * 0.55)
+    cam2_det = active_chickens - cam1_det  # ensures cam1 + cam2 = total exactly
+    health_score_int = round(health_score)
+
     return {
-        "results": results,
-        "success": any(results.values()),
-        "message": "Connection tests completed"
+        "farmId": str(farm_id),
+        "name": farm_info["name"],
+        "healthScore": health_score_int,
+        "cameras": [
+            {"id": "cam1", "name": "Main Barn", "status": "active", "zone": "Zone A", "location": "North", "lastImage": "", "detections": cam1_det, "healthScore": health_score_int},
+            {"id": "cam2", "name": "Feeding Area", "status": "active", "zone": "Zone B", "location": "Center", "lastImage": "", "detections": cam2_det, "healthScore": health_score_int}
+        ],
+        "behaviorData": [
+            {"hour": 8, "activity": 60, "feeding": 30, "resting": 10},
+            {"hour": 12, "activity": 80, "feeding": 15, "resting": 5},
+            {"hour": 16, "activity": 55, "feeding": 25, "resting": 20}
+        ],
+        "environmentData": [
+             {"time": "08:00", "temperature": 24, "humidity": 60},
+             {"time": "12:00", "temperature": 27, "humidity": 55},
+             {"time": "16:00", "temperature": 25, "humidity": 58}
+        ],
+        "currentStats": {
+            "temperature": farm_info["base_temp"],
+            "humidity": farm_info["base_humidity"],
+            "activeChickens": active_chickens,
+            "feedingRate": 85,
+            "waterConsumption": 450
+        }
+    }
+
+@app.get("/api/settings")
+async def get_settings():
+    """Get mock settings"""
+    return {
+        "notifications": {
+            "email": True,
+            "sms": False,
+            "push": True,
+            "alertThreshold": "medium"
+        },
+        "monitoring": {
+            "detectionSensitivity": 85,
+            "recordingEnabled": True,
+            "motionDetection": True,
+            "nightVision": True
+        },
+        "alerts": {
+            "healthScore": 80,
+            "temperature": {"min": 20, "max": 28},
+            "humidity": {"min": 50, "max": 70},
+            "abnormalBehavior": True
+        },
+        "system": {
+            "language": "en",
+            "timezone": "Asia/Bangkok",
+            "autoBackup": True,
+            "dataRetention": 30
+        }
     }
 
 @app.get("/api/video_feed")
-async def video_feed():
-    """Stream video feed"""
+async def video_feed(farm_id: int = 1):
+    """Stream video feed for specific farm"""
+    detector = detectors.get(farm_id)
+    if not detector:
+        return {"error": "Farm not found"}
+        
     def generate():
         while True:
             frame = detector.get_current_frame(annotated=True)
@@ -605,6 +792,142 @@ async def get_stats():
         "video_source": VIDEO_SOURCE,
         "confidence_threshold": CONFIDENCE_THRESHOLD,
         "process_fps": PROCESS_FPS
+    }
+
+# =====================================================
+# LINE Notification Endpoints
+# =====================================================
+
+SUBSCRIBERS_FILE = os.path.join(os.path.dirname(__file__), "subscribers.json")
+
+def load_subscribers() -> List[str]:
+    """โหลด subscribers จากไฟล์ (ไม่หายแม้ restart)"""
+    try:
+        if os.path.exists(SUBSCRIBERS_FILE):
+            with open(SUBSCRIBERS_FILE, "r") as f:
+                return json.load(f)
+    except Exception:
+        pass
+    return []
+
+def save_subscribers(subscribers: List[str]):
+    """บันทึก subscribers ลงไฟล์ทันที"""
+    try:
+        with open(SUBSCRIBERS_FILE, "w") as f:
+            json.dump(subscribers, f)
+    except Exception as e:
+        logger.error(f"❌ Save subscribers error: {e}")
+
+# โหลดตอน startup — ไม่หายแม้ Railway restart
+line_subscribers: List[str] = load_subscribers()
+logger.info(f"📱 Loaded {len(line_subscribers)} LINE subscribers from disk")
+
+@app.post("/webhook/line")
+async def line_webhook(request: Request):
+    """LINE Webhook — รับ event เมื่อมีคนแอด Bot แล้วเก็บ User ID + ส่ง welcome ทันที"""
+    try:
+        body = await request.json()
+    except Exception:
+        return {"status": "ok"}
+
+    events = body.get("events", [])
+    for event in events:
+        user_id = event.get("source", {}).get("userId")
+        event_type = event.get("type")  # follow, message, etc.
+
+        if user_id and user_id not in line_subscribers:
+            line_subscribers.append(user_id)
+            save_subscribers(line_subscribers)  # ✅ บันทึกทันที ไม่หายแม้ restart
+            logger.info(f"📱 New LINE subscriber: {user_id[:8]}... (event: {event_type})")
+
+            # ส่ง welcome message ทันทีที่แอด
+            for ch in notification_manager.channels:
+                if hasattr(ch, 'send_message_to'):
+                    ch.send_message_to(
+                        user_id,
+                        "🐔 สวัสดีครับ! ยินดีต้อนรับสู่ ChickGuard\n\n"
+                        "━━━━━━━━━━━━━━━━\n"
+                        "🤖 ระบบ AI เฝ้าระวังฟาร์มไก่\n"
+                        "🚨 แจ้งเตือนทันทีเมื่อตรวจพบความผิดปกติ\n"
+                        "📊 วิเคราะห์พฤติกรรมและความเสี่ยงโรค\n"
+                        "━━━━━━━━━━━━━━━━\n"
+                        "✅ คุณจะได้รับการแจ้งเตือนอัตโนมัติแล้ว!"
+                    )
+    return {"status": "ok"}
+
+@app.get("/api/notify/subscribers")
+async def get_subscribers():
+    """ดูจำนวนและรายการคนที่แอด Bot"""
+    return {
+        "count": len(line_subscribers),
+        "subscribers": [uid[:8] + "..." for uid in line_subscribers]
+    }
+
+@app.post("/api/notify/broadcast")
+async def broadcast_alert(risk_score: float = 75.0, risk_level: str = "high"):
+    """ส่ง alert ไปหาทุกคนที่แอด Bot (ใช้ตอน pitch!)"""
+    if not line_subscribers:
+        return {"success": False, "message": "❌ ยังไม่มีคนแอด Bot เลย — ให้ scan QR ก่อน"}
+
+    message = (
+        f"🚨 ChickGuard AI Alert!\n"
+        f"━━━━━━━━━━━━━━━━\n"
+        f"⏰ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        f"📊 Risk Score: {risk_score}/100\n"
+        f"🎯 Risk Level: {risk_level.upper()}\n\n"
+        f"💡 กรุณาตรวจสอบฟาร์มทันที!\n"
+        f"━━━━━━━━━━━━━━━━\n"
+        f"🐔 ChickGuard System"
+    )
+
+    results = []
+    for uid in line_subscribers:
+        ok = False
+        for ch in notification_manager.channels:
+            if hasattr(ch, 'send_message_to'):
+                ok = ch.send_message_to(uid, message)
+                break
+        results.append({"user": uid[:8] + "...", "success": ok})
+
+    success_count = sum(1 for r in results if r["success"])
+    return {
+        "success": success_count > 0,
+        "sent_to": success_count,
+        "total_subscribers": len(line_subscribers),
+        "results": results
+    }
+
+@app.post("/api/notify/test")
+async def notify_test():
+    """ส่ง test message ไปทุก channel ที่ configured (LINE, Email) เพื่อทดสอบ"""
+    results = notification_manager.test_all_channels()
+    any_success = any(results.values())
+    return {
+        "success": any_success,
+        "results": results,
+        "message": "✅ Test message sent! Check your LINE app." if any_success else "❌ No channels configured. Set LINE_CHANNEL_ACCESS_TOKEN and LINE_USER_ID in .env"
+    }
+
+@app.post("/api/notify/alert")
+async def notify_alert(risk_score: float = 75.0, risk_level: str = "high"):
+    """ส่ง alert จริง โดยกำหนด risk_score และ risk_level เอง (high/medium/low)"""
+    risk_data = {
+        "risk_score": risk_score,
+        "risk_level": risk_level,
+        "urgency": "immediate" if risk_level == "high" else "moderate",
+        "anomalies": [
+            {"description": f"Manual alert triggered via API (score: {risk_score})"}
+        ],
+        "recommendations": [
+            {"priority": "urgent" if risk_level == "high" else "high", "icon": "🔍", "action": "ตรวจสอบฟาร์มทันที"}
+        ]
+    }
+    results = notification_manager.send_alert(risk_data)
+    any_success = any(results.values())
+    return {
+        "success": any_success,
+        "results": results,
+        "message": f"✅ Alert sent! (risk_level={risk_level}, score={risk_score})" if any_success else "❌ No channels configured. Check .env"
     }
 
 if __name__ == "__main__":

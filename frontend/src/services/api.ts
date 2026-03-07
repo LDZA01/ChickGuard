@@ -40,35 +40,70 @@ export const api = {
    * Get live detection data from backend
    */
   async getDetectionLive() {
-    return fetchAPI('/api/detection/live');
+    return fetchAPI<any>('/api/detection/live');
   },
 
   /**
    * Get dashboard data
    */
   async getDashboard() {
-    return fetchAPI('/api/dashboard');
+    return fetchAPI<any>('/api/dashboard');
   },
 
   /**
    * Get system statistics
    */
   async getStats() {
-    return fetchAPI('/api/stats');
+    return fetchAPI<any>('/api/stats');
+  },
+
+  /**
+   * Get current risk analysis
+   */
+  async getRiskCurrent(farmId: number = 1) {
+    return fetchAPI<any>(`/api/risk/current?farm_id=${farmId}`);
+  },
+
+  /**
+   * Get analytics data
+   */
+  async getAnalytics() {
+    return fetchAPI<any>('/api/analytics');
+  },
+
+  /**
+   * Get farm details by ID
+   */
+  async getFarmDetail(farmId: string) {
+    return fetchAPI<any>(`/api/farm/${farmId}`);
+  },
+
+  /**
+   * Get settings
+   */
+  async getSettings() {
+    return fetchAPI<any>('/api/settings');
+  },
+
+  /**
+   * Get risk trend over time
+   */
+  async getRiskTrend() {
+    return fetchAPI<any>('/api/risk/trend');
   },
 
   /**
    * Check if backend is available
    */
   async healthCheck() {
-    return fetchAPI('/');
+    return fetchAPI<any>('/');
   },
 
   /**
    * Get video feed URL
    */
-  getVideoFeedUrl() {
-    return `${API_BASE_URL}/api/video_feed`;
+  getVideoFeedUrl(farmId: number = 1) {
+    return `${API_BASE_URL}/api/video_feed?farm_id=${farmId}`;
   }
 };
 

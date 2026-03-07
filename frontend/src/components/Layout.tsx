@@ -7,16 +7,18 @@ import {
   Settings, 
   Menu,
   X,
-  Bird
+  Bird,
+  Stethoscope,
 } from 'lucide-react'
 import { useLanguage } from '../contexts/LanguageContext'
 import LanguageSwitcher from './LanguageSwitcher'
 
 const navigation = [
-  { name: 'dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'analytics', href: '/analytics', icon: Activity },
-  { name: 'alerts', href: '/alerts', icon: Bell },
-  { name: 'settings', href: '/settings', icon: Settings },
+  { name: 'dashboard',  href: '/',          icon: LayoutDashboard },
+  { name: 'analytics',  href: '/analytics', icon: Activity },
+  { name: 'alerts',     href: '/alerts',    icon: Bell },
+  { name: 'vetConnect', href: '/vet',        icon: Stethoscope },
+  { name: 'settings',   href: '/settings',  icon: Settings },
 ]
 
 export default function Layout() {

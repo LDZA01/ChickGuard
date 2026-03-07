@@ -14,7 +14,7 @@ import {
 } from 'chart.js'
 import { TrendingUp, TrendingDown, Activity, Target } from 'lucide-react'
 import { useLanguage } from '../contexts/LanguageContext'
-import { generateAnalyticsData } from '../utils/mockData'
+import api from '../services/api'
 import type { AnalyticsData } from '../types'
 
 ChartJS.register(
@@ -35,10 +35,15 @@ export default function Analytics() {
   const { t } = useLanguage()
 
   useEffect(() => {
-    setTimeout(() => {
-      setAnalyticsData(generateAnalyticsData())
+    const fetchAnalytics = async () => {
+      setLoading(true)
+      const { data, error } = await api.getAnalytics()
+      if (!error && data) {
+        setAnalyticsData(data)
+      }
       setLoading(false)
-    }, 500)
+    }
+    fetchAnalytics()
   }, [])
 
   if (loading) {
@@ -98,7 +103,7 @@ export default function Analytics() {
             <Activity className="w-8 h-8 text-green-600" />
             <TrendingUp className="w-5 h-5 text-green-500" />
           </div>
-          <p className="text-sm text-gray-600">Normal Behavior</p>
+          <p className="text-sm text-gray-600">{t.analyticsExtra.normalBehavior}</p>
           <p className="text-2xl font-bold mt-1">
             {analyticsData.behaviorAnalysis.filter(b => b.activity > 50).length}
           </p>
@@ -109,7 +114,7 @@ export default function Analytics() {
             <Activity className="w-8 h-8 text-yellow-600" />
             <TrendingDown className="w-5 h-5 text-yellow-500" />
           </div>
-          <p className="text-sm text-gray-600">Abnormal Behavior</p>
+          <p className="text-sm text-gray-600">{t.analyticsExtra.abnormalBehavior}</p>
           <p className="text-2xl font-bold mt-1">
             {analyticsData.behaviorAnalysis.filter(b => b.activity <= 50 && b.activity > 30).length}
           </p>
@@ -120,7 +125,7 @@ export default function Analytics() {
             <Target className="w-8 h-8 text-red-600" />
             <TrendingDown className="w-5 h-5 text-red-500" />
           </div>
-          <p className="text-sm text-gray-600">Alert Required</p>
+          <p className="text-sm text-gray-600">{t.analyticsExtra.alertRequired}</p>
           <p className="text-2xl font-bold mt-1">
             {analyticsData.behaviorAnalysis.filter(b => b.activity <= 30).length}
           </p>
@@ -175,10 +180,9 @@ export default function Analytics() {
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2">
                   <div
-                    className={`h-2 rounded-full ${
-                      disease.risk > 70 ? 'bg-red-500' :
+                    className={`h-2 rounded-full ${disease.risk > 70 ? 'bg-red-500' :
                       disease.risk > 40 ? 'bg-yellow-500' : 'bg-green-500'
-                    }`}
+                      }`}
                     style={{ width: `${disease.risk}%` }}
                   />
                 </div>
@@ -193,19 +197,15 @@ export default function Analytics() {
             <div className="flex items-start space-x-3">
               <TrendingUp className="w-5 h-5 text-green-500 mt-1" />
               <div>
-                <p className="font-medium">Improvement</p>
-                <p className="text-sm text-gray-600">
-                  Average health score increased <strong>12%</strong> this month
-                </p>
+                <p className="font-medium">{t.analyticsExtra.improvement}</p>
+                <p className="text-sm text-gray-600">{t.analyticsExtra.improvementDesc}</p>
               </div>
             </div>
             <div className="flex items-start space-x-3">
               <Target className="w-5 h-5 text-blue-500 mt-1" />
               <div>
-                <p className="font-medium">Detection</p>
-                <p className="text-sm text-gray-600">
-                  System detects abnormalities <strong>45%</strong> faster
-                </p>
+                <p className="font-medium">{t.analyticsExtra.detection}</p>
+                <p className="text-sm text-gray-600">{t.analyticsExtra.detectionDesc}</p>
               </div>
             </div>
           </div>

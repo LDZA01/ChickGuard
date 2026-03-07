@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { ArrowLeft, Camera, Thermometer, Droplets } from 'lucide-react'
+import { ArrowLeft, Thermometer, Droplets, Wifi } from 'lucide-react'
 import { Bar } from 'react-chartjs-2'
 import {
   Chart as ChartJS,
@@ -12,33 +12,30 @@ import {
   Legend
 } from 'chart.js'
 import { useLanguage } from '../contexts/LanguageContext'
-import { generateFarmDetailData, generateMockData } from '../utils/mockData'
-import type { FarmDetailData, Farm } from '../types'
+import api from '../services/api'
+import type { FarmDetailData } from '../types'
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend
-)
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
 
 export default function FarmDetail() {
   const { id } = useParams()
   const [farmData, setFarmData] = useState<FarmDetailData | null>(null)
-  const [farm, setFarm] = useState<Farm | null>(null)
   const [loading, setLoading] = useState(true)
+  const [feedErrors, setFeedErrors] = useState<Record<string, boolean>>({})
   const { t } = useLanguage()
 
   useEffect(() => {
-    setTimeout(() => {
-      const mockData = generateMockData()
-      const selectedFarm = mockData.farms.find(f => f.id === id)
-      setFarm(selectedFarm || null)
-      setFarmData(generateFarmDetailData(id || '1'))
+    const fetchFarm = async () => {
+      setLoading(true)
+      if (id) {
+        const { data, error } = await api.getFarmDetail(id)
+        if (!error && data) {
+          setFarmData(data)
+        }
+      }
       setLoading(false)
-    }, 500)
+    }
+    fetchFarm()
   }, [id])
 
   if (loading) {
@@ -52,7 +49,7 @@ export default function FarmDetail() {
     )
   }
 
-  if (!farmData || !farm) return <div>{t.farmDetail.notFound}</div>
+  if (!farmData) return <div className="p-8 text-center text-red-500 font-bold">{t.farmDetail.notFound}</div>
 
   const activityChartData = {
     labels: farmData.behaviorData.map(d => `${d.hour}:00`),
@@ -63,9 +60,14 @@ export default function FarmDetail() {
     }],
   }
 
-  const getStatusText = (status: string): string => {
-    return t.status[status as keyof typeof t.status] || status
-  }
+  const farmId = parseInt(farmData.farmId)
+  const cameras = farmData.cameras
+  // Determine grid layout based on number of cameras
+  const gridClass = cameras.length === 1
+    ? 'grid-cols-1'
+    : cameras.length === 2
+      ? 'grid-cols-1 lg:grid-cols-2'
+      : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3'
 
   return (
     <div className="space-y-6">
@@ -75,26 +77,27 @@ export default function FarmDetail() {
           <ArrowLeft className="w-6 h-6" />
         </Link>
         <div className="flex-1">
-          <h1 className="text-3xl font-bold text-gray-900">{farm.name}</h1>
-          <p className="text-gray-600">{farm.location}</p>
+          <h1 className="text-3xl font-bold text-gray-900">{farmData.name}</h1>
+          <p className="text-gray-600 text-sm flex items-center gap-1 mt-0.5">
+            <Wifi className="w-3 h-3 text-green-500" />
+            {cameras.filter(c => c.status === 'active').length} / {cameras.length} {t.farmDetailExtra.liveFeeds}
+          </p>
         </div>
-        <span className={`badge ${
-          farm.status === 'critical' ? 'badge-danger' :
-          farm.status === 'warning' ? 'badge-warning' : 'badge-success'
-        }`}>
-          {getStatusText(farm.status)}
-        </span>
+        <div className="text-right">
+          <p className="text-sm text-gray-500">{t.farmDetailExtra.healthScore}</p>
+          <p className="text-2xl font-bold text-green-600">{Math.round(farmData.healthScore)}/100</p>
+        </div>
       </div>
 
-      {/* Stats Cards */}
+      {/* Stats Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="card">
           <p className="text-sm text-gray-600">{t.dashboard.chickens}</p>
-          <p className="text-2xl font-bold mt-1">{farm.totalChickens.toLocaleString()}</p>
+          <p className="text-2xl font-bold mt-1">{farmData.currentStats.activeChickens.toLocaleString()}</p>
         </div>
         <div className="card">
-          <p className="text-sm text-gray-600">{t.dashboard.healthScore}</p>
-          <p className="text-2xl font-bold mt-1">{farm.healthScore}/100</p>
+          <p className="text-sm text-gray-600">{t.farmDetailExtra.feedingPatternAnalysis}</p>
+          <p className="text-2xl font-bold mt-1">{farmData.currentStats.feedingRate}%</p>
         </div>
         <div className="card">
           <p className="text-sm text-gray-600">{t.farmDetail.temperature}</p>
@@ -106,24 +109,57 @@ export default function FarmDetail() {
         </div>
       </div>
 
-      {/* Camera Status */}
-      <div className="card">
-        <h2 className="text-xl font-bold mb-4">{t.farmDetail.cameraStatus}</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {farmData.cameras.map((camera) => (
-            <div key={camera.id} className="border rounded-lg p-4">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center space-x-2">
-                  <Camera className="w-5 h-5" />
-                  <span className="font-medium">{t.farmDetail.cameraName} {camera.id}</span>
+      {/* Live Camera Streams — 1 card per camera */}
+      <div className="card space-y-4">
+        <h2 className="text-xl font-bold">{t.farmDetailExtra.liveFeeds} · {cameras.length} {cameras.length > 1 ? t.farmDetailExtra.streamsPlural : t.farmDetailExtra.streams}</h2>
+        <div className={`grid ${gridClass} gap-4`}>
+          {cameras.map((camera, index) => (
+            <div
+              key={camera.id}
+              className="bg-slate-900 rounded-xl overflow-hidden relative border-2 border-slate-700"
+              style={{ height: cameras.length === 1 ? '420px' : '260px' }}
+            >
+              {camera.status === 'active' ? (
+                feedErrors[camera.id] ? (
+                  <div className="absolute inset-0 bg-slate-800 flex flex-col items-center justify-center text-white gap-2 opacity-60">
+                    <p className="text-sm">{t.farmDetailExtra.feedUnavailable}</p>
+                  </div>
+                ) : (
+                <img
+                  src={api.getVideoFeedUrl(farmId)}
+                  alt={`Camera ${camera.name}`}
+                  className="absolute inset-0 w-full h-full object-cover"
+                  onError={() => setFeedErrors(prev => ({ ...prev, [camera.id]: true }))}
+                />
+                )
+              ) : (
+                <div className="absolute inset-0 bg-slate-800 flex flex-col items-center justify-center text-white gap-2 opacity-60">
+                  <p className="text-sm">{t.farmDetailExtra.cameraOffline}</p>
                 </div>
-                <span className={`px-2 py-1 rounded text-xs ${
-                  camera.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                }`}>
-                  {camera.status === 'active' ? t.common.active : t.common.inactive}
+              )}
+
+              {/* Overlay: top-left */}
+              <div className="absolute top-2 left-2 flex items-center gap-1.5">
+                {camera.status === 'active' && (
+                  <span className="bg-red-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded animate-pulse">REC</span>
+                )}
+                <span className="bg-black/50 backdrop-blur text-white text-[10px] font-mono px-2 py-0.5 rounded">
+                  CAM {index + 1} · {camera.name}
                 </span>
               </div>
-              <p className="text-sm text-gray-600">{t.farmDetail.location}: {camera.location}</p>
+
+              {/* Overlay: top-right — detection count */}
+              <div className="absolute top-2 right-2 bg-black/50 backdrop-blur text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                {camera.detections.toLocaleString()} det
+              </div>
+
+              {/* Overlay: bottom — zone & location */}
+              <div className="absolute bottom-2 left-2 bg-black/50 backdrop-blur text-white text-[9px] font-mono px-2 py-0.5 rounded">
+                {camera.zone} · {camera.location}
+              </div>
+
+              {/* Status dot */}
+              <div className={`absolute bottom-2 right-2 w-2 h-2 rounded-full ${camera.status === 'active' ? 'bg-green-400' : 'bg-gray-500'}`} />
             </div>
           ))}
         </div>
@@ -132,12 +168,12 @@ export default function FarmDetail() {
       {/* Activity Chart */}
       <div className="card">
         <h2 className="text-xl font-bold mb-4">{t.farmDetail.hourlyActivity}</h2>
-        <div style={{ height: '300px' }}>
+        <div style={{ height: '280px' }}>
           <Bar data={activityChartData} options={{ responsive: true, maintainAspectRatio: false }} />
         </div>
       </div>
 
-      {/* Environment Data */}
+      {/* Environment */}
       <div className="card">
         <h2 className="text-xl font-bold mb-4">{t.farmDetail.environment}</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

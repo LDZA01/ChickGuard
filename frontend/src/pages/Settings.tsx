@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Save, Bell, Shield, Database } from 'lucide-react'
 import { useLanguage } from '../contexts/LanguageContext'
 import type { Settings as SettingsType } from '../types'
-import { generateSettings } from '../utils/mockData'
+import api from '../services/api'
 
 export default function Settings() {
   const [settings, setSettings] = useState<SettingsType | null>(null)
@@ -11,10 +11,15 @@ export default function Settings() {
   const { t } = useLanguage()
 
   useEffect(() => {
-    setTimeout(() => {
-      setSettings(generateSettings())
+    const fetchSettings = async () => {
+      setLoading(true)
+      const { data, error } = await api.getSettings()
+      if (!error && data) {
+        setSettings(data)
+      }
       setLoading(false)
-    }, 500)
+    }
+    fetchSettings()
   }, [])
 
   const handleSave = () => {
@@ -62,13 +67,11 @@ export default function Settings() {
                   ...settings,
                   notifications: { ...settings.notifications, [key]: !settings.notifications[key as keyof typeof settings.notifications] }
                 })}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full ${
-                  settings.notifications[key as keyof typeof settings.notifications] ? 'bg-primary-600' : 'bg-gray-300'
-                }`}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full ${settings.notifications[key as keyof typeof settings.notifications] ? 'bg-primary-600' : 'bg-gray-300'
+                  }`}
               >
-                <span className={`inline-block h-4 w-4 rounded-full bg-white transform transition ${
-                  settings.notifications[key as keyof typeof settings.notifications] ? 'translate-x-6' : 'translate-x-1'
-                }`} />
+                <span className={`inline-block h-4 w-4 rounded-full bg-white transform transition ${settings.notifications[key as keyof typeof settings.notifications] ? 'translate-x-6' : 'translate-x-1'
+                  }`} />
               </button>
             </div>
           ))}
@@ -137,13 +140,11 @@ export default function Settings() {
                 ...settings,
                 system: { ...settings.system, autoBackup: !settings.system.autoBackup }
               })}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full ${
-                settings.system.autoBackup ? 'bg-primary-600' : 'bg-gray-300'
-              }`}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full ${settings.system.autoBackup ? 'bg-primary-600' : 'bg-gray-300'
+                }`}
             >
-              <span className={`inline-block h-4 w-4 rounded-full bg-white transform transition ${
-                settings.system.autoBackup ? 'translate-x-6' : 'translate-x-1'
-              }`} />
+              <span className={`inline-block h-4 w-4 rounded-full bg-white transform transition ${settings.system.autoBackup ? 'translate-x-6' : 'translate-x-1'
+                }`} />
             </button>
           </div>
           <div>
