@@ -38,8 +38,8 @@ export default function Dashboard() {
   const { t } = useLanguage()
 
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true)
+    const fetchData = async (isInitial = false) => {
+      if (isInitial) setLoading(true)
 
       const { data, error } = await api.getDashboard()
 
@@ -51,11 +51,11 @@ export default function Dashboard() {
         setDashboardData(data)
       }
 
-      setLoading(false)
+      if (isInitial) setLoading(false)
     }
 
-    fetchData()
-    const interval = setInterval(fetchData, 5000)
+    fetchData(true)
+    const interval = setInterval(() => fetchData(false), 5000)
 
     return () => clearInterval(interval)
   }, [])
