@@ -17,12 +17,19 @@ class BehaviorAnalyzer:
     Detects anomalies that may indicate disease
     """
     
-    def __init__(self, history_window=300):  # 5 minutes at 1 detection/sec
+    def __init__(self, history_window=300, farm_id: int = 1):  # 5 minutes at 1 detection/sec
         """
         Args:
             history_window: Number of frames to keep in history
+            farm_id: Used to differentiate synthetic behavior per farm
         """
         self.history_window = history_window
+        self.farm_id = farm_id
+        
+        # Per-farm offsets so each farm has distinct baseline behavior
+        # Farm 1: moderate (healthy), Farm 2: slightly high density, Farm 3: low activity
+        _offsets = {1: (0, 0), 2: (10, 15), 3: (-15, -10)}
+        self._movement_offset, self._density_offset = _offsets.get(farm_id, (0, 0))
         
         # History buffers
         self.detection_history = deque(maxlen=history_window)
@@ -116,7 +123,7 @@ class BehaviorAnalyzer:
         # Normalize to 0-100 scale
         movement = min(100, (std_x + std_y) / 10)
         
-        return float(movement)
+        return float(max(0, min(100, movement + self._movement_offset)))
     
     def _calculate_density(self, detections: List[Dict]) -> float:
         """
@@ -148,7 +155,7 @@ class BehaviorAnalyzer:
         # Normalize assuming max distance of 500 pixels
         density = max(0, min(100, 100 - (avg_distance / 5)))
         
-        return float(density)
+        return float(max(0, min(100, density + self._density_offset)))
     
     def _calculate_clustering(self, detections: List[Dict]) -> float:
         """

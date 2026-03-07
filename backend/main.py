@@ -434,7 +434,7 @@ farm_analyzers: Dict[int, BehaviorAnalyzer] = {}
 farm_risk_calculators: Dict[int, RiskScoreCalculator] = {}
 for farm in FARM_DB:
     detectors[farm["id"]] = VideoDetector(video_source=VIDEO_SOURCE, farm_id=farm["id"])
-    farm_analyzers[farm["id"]] = BehaviorAnalyzer(history_window=300)
+    farm_analyzers[farm["id"]] = BehaviorAnalyzer(history_window=300, farm_id=farm["id"])
     farm_risk_calculators[farm["id"]] = RiskScoreCalculator()
 
 # =====================================================
