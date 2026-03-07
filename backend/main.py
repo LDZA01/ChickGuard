@@ -77,9 +77,7 @@ HIGH_RISK_THRESHOLD = int(os.getenv("HIGH_RISK_THRESHOLD", "70"))
 # Scaling factor: how many real chickens per detected object in the frame
 CHICKEN_SCALE_FACTOR = int(os.getenv("CHICKEN_SCALE_FACTOR", "1000"))
 
-# Initialize behavior analysis and risk calculation
-behavior_analyzer = BehaviorAnalyzer(history_window=300)
-risk_calculator = RiskScoreCalculator()
+# Per-farm behavior analyzers and risk calculators will be initialized after FARM_DB is defined
 
 # Initialize notification manager (will load LINE and Email settings from env)
 notification_manager = NotificationManager(
@@ -432,8 +430,12 @@ FARM_DB = [
 ]
 
 detectors = {}
+farm_analyzers: Dict[int, BehaviorAnalyzer] = {}
+farm_risk_calculators: Dict[int, RiskScoreCalculator] = {}
 for farm in FARM_DB:
     detectors[farm["id"]] = VideoDetector(video_source=VIDEO_SOURCE, farm_id=farm["id"])
+    farm_analyzers[farm["id"]] = BehaviorAnalyzer(history_window=300)
+    farm_risk_calculators[farm["id"]] = RiskScoreCalculator()
 
 # =====================================================
 # API Endpoints (same as webcam version)
@@ -475,10 +477,10 @@ async def get_live_detection(farm_id: int = 1):
     detections = detector.current_detections
     
     # Analyze behavior
-    behavior_data = behavior_analyzer.analyze(detections)
+    behavior_data = farm_analyzers[farm_id].analyze(detections)
     
     # Calculate risk score
-    risk_data = risk_calculator.calculate_risk_score(behavior_data)
+    risk_data = farm_risk_calculators[farm_id].calculate_risk_score(behavior_data)
     
     return {
         "detection": detection_data,
@@ -504,8 +506,8 @@ async def get_dashboard():
         detection = detector.get_detection_data()
         detections = detector.current_detections
         
-        behavior_data = behavior_analyzer.analyze(detections)
-        risk_data = risk_calculator.calculate_risk_score(behavior_data)
+        behavior_data = farm_analyzers[farm["id"]].analyze(detections)
+        risk_data = farm_risk_calculators[farm["id"]].calculate_risk_score(behavior_data)
         
         total_objects += detection['total_objects']
         total_risk += risk_data['risk_score']
@@ -553,31 +555,36 @@ async def get_dashboard():
     }
 
 def get_risk_trend_internal():
-    """Format risk trend from real risk_calculator history. Falls back to synthetic if no history yet."""
-    history = risk_calculator.risk_history
+    """Return per-farm risk trend series for multi-line chart (Option 2).
+    Each entry: {farmId, farmName, data: [{time, risk}, ...]}
+    """
     now = datetime.now()
+    result = []
+    for farm in FARM_DB:
+        calc = farm_risk_calculators[farm["id"]]
+        history = calc.risk_history
 
-    if len(history) >= 2:
-        # Sample up to 24 evenly-spaced points from real history
-        step = max(1, len(history) // 24)
-        sampled = history[::step][-24:]
-        trend = []
-        for i, record in enumerate(sampled):
-            # Parse timestamp or use sequential labels
-            try:
-                ts = datetime.fromisoformat(record['timestamp'])
-                label = ts.strftime("%H:%M")
-            except Exception:
-                label = f"{i*1:02d}:00"
-            trend.append({"time": label, "risk": round(record['risk_score'])})
-        return trend
-    else:
-        # Cold start fallback — synthetic until real history accumulates
-        trend = []
-        for i in range(24):
-            t = (now - timedelta(hours=23 - i)).strftime("%H:00")
-            trend.append({"time": t, "risk": int(20 + (10 * np.sin(i)) + np.random.randint(0, 10))})
-        return trend
+        if len(history) >= 2:
+            step = max(1, len(history) // 24)
+            sampled = history[::step][-24:]
+            data = []
+            for i, record in enumerate(sampled):
+                try:
+                    ts = datetime.fromisoformat(record['timestamp'])
+                    label = ts.strftime("%H:%M")
+                except Exception:
+                    label = f"{i:02d}:00"
+                data.append({"time": label, "risk": round(record['risk_score'])})
+        else:
+            # Cold start fallback — synthetic until real history accumulates
+            seed = farm["id"]  # different curve per farm
+            data = []
+            for i in range(24):
+                t = (now - timedelta(hours=23 - i)).strftime("%H:00")
+                data.append({"time": t, "risk": int(20 + (10 * np.sin(i + seed)) + np.random.randint(0, 10))})
+
+        result.append({"farmId": farm["id"], "farmName": farm["name"], "data": data})
+    return result
 
 @app.get("/api/risk/current")
 async def get_current_risk(farm_id: int = 1):
@@ -587,8 +594,8 @@ async def get_current_risk(farm_id: int = 1):
         return {"error": "Farm not found"}
         
     detections = detector.current_detections
-    behavior_data = behavior_analyzer.analyze(detections)
-    risk_data = risk_calculator.calculate_risk_score(behavior_data)
+    behavior_data = farm_analyzers[farm_id].analyze(detections)
+    risk_data = farm_risk_calculators[farm_id].calculate_risk_score(behavior_data)
     
     return {
         "timestamp": datetime.now().isoformat(),
@@ -597,7 +604,7 @@ async def get_current_risk(farm_id: int = 1):
         "urgency": risk_data['urgency'],
         "anomalies": risk_data['anomalies'],
         "recommendations": risk_data['recommendations'],
-        "behavior_summary": behavior_analyzer.get_summary()
+        "behavior_summary": farm_analyzers[farm_id].get_summary()
     }
 
 @app.get("/api/risk/trend")
@@ -608,8 +615,12 @@ async def get_risk_trend():
 @app.get("/api/analytics")
 async def get_analytics():
     """Get analytics aggregated from real behavior and risk history"""
-    history = list(behavior_analyzer.detection_history)
-    risk_hist = risk_calculator.risk_history
+    # Aggregate detection history and risk history across all farms
+    history = []
+    risk_hist = []
+    for farm in FARM_DB:
+        history.extend(list(farm_analyzers[farm["id"]].detection_history))
+        risk_hist.extend(farm_risk_calculators[farm["id"]].risk_history)
 
     # --- Health Trend: last 7 data-points from risk history, labeled by day ---
     days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
@@ -693,8 +704,8 @@ async def get_farm_detail(farm_id: int):
 
     detection = detector.get_detection_data()
     detections = detector.current_detections
-    behavior_data = behavior_analyzer.analyze(detections)
-    risk_data = risk_calculator.calculate_risk_score(behavior_data)
+    behavior_data = farm_analyzers[farm_id].analyze(detections)
+    risk_data = farm_risk_calculators[farm_id].calculate_risk_score(behavior_data)
 
     active_chickens = detection['total_objects'] * CHICKEN_SCALE_FACTOR  # Configurable via CHICKEN_SCALE_FACTOR env
     health_score = max(0, 100 - risk_data['risk_score'])  # Same formula as dashboard
@@ -787,8 +798,10 @@ async def video_feed(farm_id: int = 1):
 
 @app.get("/api/stats")
 async def get_stats():
+    # Aggregate stats across all farm detectors
+    all_stats = {fid: det.stats for fid, det in detectors.items()}
     return {
-        "stats": detector.stats,
+        "stats": all_stats,
         "yolo_available": YOLO_AVAILABLE,
         "video_source": VIDEO_SOURCE,
         "confidence_threshold": CONFIDENCE_THRESHOLD,

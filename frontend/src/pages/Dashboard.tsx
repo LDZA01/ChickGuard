@@ -137,18 +137,23 @@ export default function Dashboard() {
 
   if (!dashboardData) return null
 
+  const FARM_COLORS = [
+    { border: 'rgb(239, 68, 68)',   background: 'rgba(239, 68, 68, 0.1)'   },
+    { border: 'rgb(59, 130, 246)',  background: 'rgba(59, 130, 246, 0.1)'  },
+    { border: 'rgb(34, 197, 94)',   background: 'rgba(34, 197, 94, 0.1)'   },
+  ]
+
   const chartData = {
-    labels: dashboardData.riskTrend.map(d => d.time),
-    datasets: [
-      {
-        label: 'Risk Level',
-        data: dashboardData.riskTrend.map(d => d.risk),
-        borderColor: 'rgb(239, 68, 68)',
-        backgroundColor: 'rgba(239, 68, 68, 0.1)',
-        tension: 0.4,
-        fill: true,
-      },
-    ],
+    labels: dashboardData.riskTrend[0]?.data.map(d => d.time) ?? [],
+    datasets: dashboardData.riskTrend.map((farm, i) => ({
+      label: farm.farmName,
+      data: farm.data.map(d => d.risk),
+      borderColor: FARM_COLORS[i % FARM_COLORS.length].border,
+      backgroundColor: FARM_COLORS[i % FARM_COLORS.length].background,
+      tension: 0.4,
+      fill: false,
+      pointRadius: 2,
+    })),
   }
 
   const chartOptions = {
@@ -156,7 +161,13 @@ export default function Dashboard() {
     maintainAspectRatio: false,
     plugins: {
       legend: {
-        display: false,
+        display: true,
+        position: 'top' as const,
+        labels: {
+          boxWidth: 12,
+          padding: 16,
+          font: { size: 12 },
+        },
       },
       tooltip: {
         backgroundColor: 'rgba(0, 0, 0, 0.8)',

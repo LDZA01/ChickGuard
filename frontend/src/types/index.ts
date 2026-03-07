@@ -50,9 +50,15 @@ export interface EnvironmentData {
   humidity: number
 }
 
-export interface RiskTrend {
+export interface RiskTrendPoint {
   time: string
   risk: number
+}
+
+export interface FarmRiskTrend {
+  farmId: number
+  farmName: string
+  data: RiskTrendPoint[]
 }
 
 export interface DashboardData {
@@ -61,7 +67,7 @@ export interface DashboardData {
   totalChickens: number
   averageHealth: number
   activeAlerts: number
-  riskTrend: RiskTrend[]
+  riskTrend: FarmRiskTrend[]
 }
 
 export interface FarmDetailData {
