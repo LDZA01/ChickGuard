@@ -216,6 +216,7 @@ function ConsultModal({ vet, onClose }: { vet: VetData; onClose: () => void }) {
 
   const selectedMode = modeOptions.find(m => m.key === mode)
 
+  // Remove the backdrop div and just render modal in a separate positioned context
   return (
     <>
       {/* Modal container */}
@@ -360,146 +361,152 @@ export default function VetConnect() {
   ]
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">{t.vetConnect.title}</h1>
-          <p className="text-gray-600 mt-1">{t.vetConnect.subtitle}</p>
-        </div>
-        <div className="flex items-center gap-1.5 text-xs text-green-600 bg-green-50 px-3 py-1.5 rounded-full">
-          <Wifi className="w-3 h-3" />
-          <span>{t.vetConnect.aiDataConnected}</span>
-        </div>
-      </div>
-
-      {/* Value Props */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {[
-          { icon: Shield, title: t.vetConnect.aiAssistedConsult, desc: t.vetConnect.aiAssistedConsultDesc, color: 'text-blue-600 bg-blue-50' },
-          { icon: Video, title: t.vetConnect.liveFarmView, desc: t.vetConnect.liveFarmViewDesc, color: 'text-purple-600 bg-purple-50' },
-          { icon: FileText, title: t.vetConnect.digitalRecords, desc: t.vetConnect.digitalRecordsDesc, color: 'text-green-600 bg-green-50' },
-        ].map(item => (
-          <div key={item.title} className="bg-white rounded-2xl border border-gray-200 p-4 flex items-start gap-3">
-            <div className={`p-2.5 rounded-xl flex-shrink-0 ${item.color}`}>
-              <item.icon className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="font-semibold text-gray-800 text-sm">{item.title}</p>
-              <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{item.desc}</p>
-            </div>
+    <>
+      {/* Page content – blurred when modal is open using CSS filter (not backdrop-filter) */}
+      <div
+        className="space-y-6 transition-[filter] duration-200"
+        style={selectedVet ? { filter: 'blur(3px)', pointerEvents: 'none', userSelect: 'none' } : undefined}
+      >
+        {/* Header */}
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">{t.vetConnect.title}</h1>
+            <p className="text-gray-600 mt-1">{t.vetConnect.subtitle}</p>
           </div>
-        ))}
-      </div>
-
-      {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-fit">
-        {[
-          { key: 'find', label: t.vetConnect.findVet },
-          { key: 'history', label: t.vetConnect.consultHistory },
-        ].map(tab => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key as 'find' | 'history')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === tab.key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-              }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Find Tab */}
-      {activeTab === 'find' && (
-        <div className="space-y-4">
-          {/* Filters */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm text-gray-500">{t.vetConnect.filterBy}</span>
-            {filters.map((f, i) => (
-              <button
-                key={f}
-                className={`text-xs px-3 py-1.5 rounded-full border transition-all ${i === 0 ? 'bg-primary-500 text-white border-primary-500' : 'border-gray-200 text-gray-600 hover:border-gray-300'
-                  }`}
-              >
-                {f}
-              </button>
-            ))}
-          </div>
-
-          {/* AI Alert */}
-          <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="font-semibold text-orange-800 text-sm">{t.vetConnect.aiAlertTitle}</p>
-              <p className="text-xs text-orange-700 mt-0.5">{t.vetConnect.aiAlertDesc}</p>
-            </div>
-            <button
-              className="flex-shrink-0 bg-orange-500 text-white text-xs px-3 py-1.5 rounded-lg hover:bg-orange-600 font-medium"
-              onClick={() => setSelectedVet(VETS[0])}
-            >
-              {t.vetConnect.consultNow}
-            </button>
-          </div>
-
-          {/* Vet Cards */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {VETS.map(vet => (
-              <VetCard key={vet.id} vet={vet} onSelect={setSelectedVet} />
-            ))}
+          <div className="flex items-center gap-1.5 text-xs text-green-600 bg-green-50 px-3 py-1.5 rounded-full">
+            <Wifi className="w-3 h-3" />
+            <span>{t.vetConnect.aiDataConnected}</span>
           </div>
         </div>
-      )}
 
-      {/* History Tab */}
-      {activeTab === 'history' && (
-        <div className="space-y-4">
-          <p className="text-sm text-gray-500">
-            {t.vetConnect.historyCount} {RECENT_CASES.length} {t.vetConnect.historyCountUnit}
-          </p>
-          {RECENT_CASES.map(c => (
-            <div key={c.id} className="card">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-mono text-gray-400">{c.id}</span>
-                    <span className="flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
-                      <CheckCircle className="w-3 h-3" />
-                      {t.vetConnect.resolved}
-                    </span>
-                  </div>
-                  <p className="font-semibold text-gray-800">{c.farm}</p>
-                  <p className="text-sm text-orange-600 mt-0.5">{c.issue[lang]}</p>
-                  <p className="text-xs text-gray-500 mt-1">{t.vetConnect.vetLabel} {c.vet[lang]}</p>
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <div className="flex items-center gap-1 text-xs text-gray-400">
-                    <Calendar className="w-3 h-3" />
-                    {c.date[lang]}
-                  </div>
-                </div>
+        {/* Value Props */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {[
+            { icon: Shield, title: t.vetConnect.aiAssistedConsult, desc: t.vetConnect.aiAssistedConsultDesc, color: 'text-blue-600 bg-blue-50' },
+            { icon: Video, title: t.vetConnect.liveFarmView, desc: t.vetConnect.liveFarmViewDesc, color: 'text-purple-600 bg-purple-50' },
+            { icon: FileText, title: t.vetConnect.digitalRecords, desc: t.vetConnect.digitalRecordsDesc, color: 'text-green-600 bg-green-50' },
+          ].map(item => (
+            <div key={item.title} className="bg-white rounded-2xl border border-gray-200 p-4 flex items-start gap-3">
+              <div className={`p-2.5 rounded-xl flex-shrink-0 ${item.color}`}>
+                <item.icon className="w-5 h-5" />
               </div>
-              <div className="mt-3 bg-gray-50 rounded-lg p-3 border-l-4 border-primary-300">
-                <p className="text-xs text-gray-700 leading-relaxed">
-                  <span className="font-semibold text-gray-800">{t.vetConnect.diagnosisSummary} </span>
-                  {c.summary[lang]}
-                </p>
+              <div>
+                <p className="font-semibold text-gray-800 text-sm">{item.title}</p>
+                <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{item.desc}</p>
               </div>
             </div>
           ))}
         </div>
-      )}
 
-      {/* Disclaimer */}
-      <div className="bg-gray-50 border border-dashed border-gray-300 rounded-xl p-4 text-center">
-        <p className="text-xs text-gray-500">
-          🚧 <span className="font-semibold">{t.vetConnect.title}</span> {t.vetConnect.disclaimerText}
-        </p>
+        {/* Tabs */}
+        <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-fit">
+          {[
+            { key: 'find', label: t.vetConnect.findVet },
+            { key: 'history', label: t.vetConnect.consultHistory },
+          ].map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key as 'find' | 'history')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === tab.key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Find Tab */}
+        {activeTab === 'find' && (
+          <div className="space-y-4">
+            {/* Filters */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm text-gray-500">{t.vetConnect.filterBy}</span>
+              {filters.map((f, i) => (
+                <button
+                  key={f}
+                  className={`text-xs px-3 py-1.5 rounded-full border transition-all ${i === 0 ? 'bg-primary-500 text-white border-primary-500' : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                    }`}
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
+
+            {/* AI Alert */}
+            <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold text-orange-800 text-sm">{t.vetConnect.aiAlertTitle}</p>
+                <p className="text-xs text-orange-700 mt-0.5">{t.vetConnect.aiAlertDesc}</p>
+              </div>
+              <button
+                className="flex-shrink-0 bg-orange-500 text-white text-xs px-3 py-1.5 rounded-lg hover:bg-orange-600 font-medium"
+                onClick={() => setSelectedVet(VETS[0])}
+              >
+                {t.vetConnect.consultNow}
+              </button>
+            </div>
+
+            {/* Vet Cards */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {VETS.map(vet => (
+                <VetCard key={vet.id} vet={vet} onSelect={setSelectedVet} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* History Tab */}
+        {activeTab === 'history' && (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-500">
+              {t.vetConnect.historyCount} {RECENT_CASES.length} {t.vetConnect.historyCountUnit}
+            </p>
+            {RECENT_CASES.map(c => (
+              <div key={c.id} className="card">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs font-mono text-gray-400">{c.id}</span>
+                      <span className="flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
+                        <CheckCircle className="w-3 h-3" />
+                        {t.vetConnect.resolved}
+                      </span>
+                    </div>
+                    <p className="font-semibold text-gray-800">{c.farm}</p>
+                    <p className="text-sm text-orange-600 mt-0.5">{c.issue[lang]}</p>
+                    <p className="text-xs text-gray-500 mt-1">{t.vetConnect.vetLabel} {c.vet[lang]}</p>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <div className="flex items-center gap-1 text-xs text-gray-400">
+                      <Calendar className="w-3 h-3" />
+                      {c.date[lang]}
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-3 bg-gray-50 rounded-lg p-3 border-l-4 border-primary-300">
+                  <p className="text-xs text-gray-700 leading-relaxed">
+                    <span className="font-semibold text-gray-800">{t.vetConnect.diagnosisSummary} </span>
+                    {c.summary[lang]}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Disclaimer */}
+        <div className="bg-gray-50 border border-dashed border-gray-300 rounded-xl p-4 text-center">
+          <p className="text-xs text-gray-500">
+            🚧 <span className="font-semibold">{t.vetConnect.title}</span> {t.vetConnect.disclaimerText}
+          </p>
+        </div>
       </div>
 
-      {/* Consult Modal */}
+      {/* Consult Modal – outside blurred wrapper so it's not affected by filter */}
       {selectedVet && (
         <ConsultModal vet={selectedVet} onClose={() => setSelectedVet(null)} />
       )}
-    </div>
+    </>
   )
 }
