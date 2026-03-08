@@ -219,7 +219,7 @@ function ConsultModal({ vet, onClose }: { vet: VetData; onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
-      <div className="rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+      <div className="rounded-2xl shadow-2xl w-full max-w-md overflow-hidden isolate">
         {/* Header */}
         <div className="bg-primary-500 px-6 py-4 flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-2xl">{vet.avatar}</div>
