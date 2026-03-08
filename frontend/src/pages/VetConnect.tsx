@@ -218,7 +218,7 @@ function ConsultModal({ vet, onClose }: { vet: VetData; onClose: () => void }) {
   const selectedMode = modeOptions.find(m => m.key === mode)
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
       <div className="rounded-2xl shadow-2xl w-full max-w-md overflow-hidden isolate">
         {/* Header */}
         <div className="bg-primary-500 px-6 py-4 flex items-center gap-3">
