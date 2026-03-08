@@ -825,14 +825,17 @@ def load_subscribers() -> List[str]:
     """โหลด subscribers — ลอง env var ก่อน (persistent ข้าม deploy), fallback ไฟล์"""
     # 1) Railway env var (persistent ข้าม deploy)
     env_subs = os.getenv("LINE_SUBSCRIBERS", "")
+    logger.info(f"📋 LINE_SUBSCRIBERS env raw value: '{env_subs[:50] if env_subs else '(empty)'}'")
     if env_subs.strip():
         try:
             subs = json.loads(env_subs)
             if isinstance(subs, list) and subs:
                 logger.info(f"📱 Loaded {len(subs)} subscribers from env var LINE_SUBSCRIBERS")
                 return subs
-        except Exception:
-            pass
+            else:
+                logger.warning(f"⚠️  LINE_SUBSCRIBERS parsed but empty or not a list: {subs}")
+        except Exception as e:
+            logger.error(f"❌ LINE_SUBSCRIBERS JSON parse error: {e} — value was: '{env_subs[:100]}'")
     # 2) fallback: file (ใช้ตอน local dev)
     try:
         if os.path.exists(SUBSCRIBERS_FILE):
