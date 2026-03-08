@@ -899,7 +899,9 @@ async def get_subscribers():
     """ดูจำนวนและรายการคนที่แอด Bot"""
     return {
         "count": len(line_subscribers),
-        "subscribers": [uid[:8] + "..." for uid in line_subscribers]
+        "subscribers": [uid[:8] + "..." for uid in line_subscribers],
+        # copy ค่านี้ไปใส่ LINE_SUBSCRIBERS env var บน Railway เพื่อให้ persistent
+        "env_var_value": json.dumps(line_subscribers)
     }
 
 @app.post("/api/notify/add_subscriber")
