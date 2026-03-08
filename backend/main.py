@@ -822,22 +822,37 @@ async def get_stats():
 SUBSCRIBERS_FILE = os.path.join(os.path.dirname(__file__), "subscribers.json")
 
 def load_subscribers() -> List[str]:
-    """โหลด subscribers จากไฟล์ (ไม่หายแม้ restart)"""
+    """โหลด subscribers — ลอง env var ก่อน (persistent ข้าม deploy), fallback ไฟล์"""
+    # 1) Railway env var (persistent ข้าม deploy)
+    env_subs = os.getenv("LINE_SUBSCRIBERS", "")
+    if env_subs.strip():
+        try:
+            subs = json.loads(env_subs)
+            if isinstance(subs, list) and subs:
+                logger.info(f"📱 Loaded {len(subs)} subscribers from env var LINE_SUBSCRIBERS")
+                return subs
+        except Exception:
+            pass
+    # 2) fallback: file (ใช้ตอน local dev)
     try:
         if os.path.exists(SUBSCRIBERS_FILE):
             with open(SUBSCRIBERS_FILE, "r") as f:
-                return json.load(f)
+                subs = json.load(f)
+                logger.info(f"📱 Loaded {len(subs)} subscribers from file")
+                return subs
     except Exception:
         pass
     return []
 
 def save_subscribers(subscribers: List[str]):
-    """บันทึก subscribers ลงไฟล์ทันที"""
+    """บันทึก subscribers ลงไฟล์ (local) และ log user IDs เพื่อ copy ไป env var"""
     try:
         with open(SUBSCRIBERS_FILE, "w") as f:
             json.dump(subscribers, f)
     except Exception as e:
         logger.error(f"❌ Save subscribers error: {e}")
+    # Log เป็น JSON เพื่อให้ copy ไปใส่ Railway env var LINE_SUBSCRIBERS ได้ง่าย
+    logger.info(f"📋 Current LINE_SUBSCRIBERS value (copy to Railway env): {json.dumps(subscribers)}")
 
 # โหลดตอน startup — ไม่หายแม้ Railway restart
 line_subscribers: List[str] = load_subscribers()
