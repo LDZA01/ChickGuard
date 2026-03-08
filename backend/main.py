@@ -899,6 +899,22 @@ async def get_subscribers():
         "subscribers": [uid[:8] + "..." for uid in line_subscribers]
     }
 
+@app.post("/api/notify/add_subscriber")
+async def add_subscriber(user_id: str):
+    """เพิ่ม LINE user_id เข้า subscriber list โดยตรง (ไม่ต้องรอ webhook)"""
+    user_id = user_id.strip()
+    if not user_id.startswith("U") or len(user_id) < 10:
+        return {"success": False, "message": "❌ user_id ไม่ถูกต้อง (ต้องขึ้นต้นด้วย U)"}
+    if user_id in line_subscribers:
+        return {"success": False, "message": f"⚠️ {user_id[:8]}... มีอยู่แล้ว"}
+    line_subscribers.append(user_id)
+    save_subscribers(line_subscribers)
+    return {
+        "success": True,
+        "message": f"✅ เพิ่ม {user_id[:8]}... สำเร็จ",
+        "total": len(line_subscribers)
+    }
+
 @app.post("/api/notify/broadcast")
 async def broadcast_alert(risk_score: float = 75.0, risk_level: str = "high"):
     """ส่ง alert ไปหาทุกคนที่แอด Bot (ใช้ตอน pitch!)"""
