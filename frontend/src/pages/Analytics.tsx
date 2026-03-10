@@ -176,15 +176,6 @@ export default function Analytics() {
               <div key={index}>
                 <div className="flex justify-between text-sm mb-1">
                   <span>{disease.disease}</span>
-                  <span className="font-semibold">{disease.risk}%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className={`h-2 rounded-full ${disease.risk > 70 ? 'bg-red-500' :
-                      disease.risk > 40 ? 'bg-yellow-500' : 'bg-green-500'
-                      }`}
-                    style={{ width: `${disease.risk}%` }}
-                  />
                 </div>
               </div>
             ))}
